@@ -1,8 +1,15 @@
 restart
 load "SplinesCode.m2"
 
-myRays = {{0,0,-1}, {-1,-1,1}, {1,-1,1},  {1,1,1}, {-1,1,1}};
-myCones = {{0,1,2}, {0,2,3}, {0,3,4}, {0,1,4}, {1,2,3,4}};
+V = {{0,0,-1}, {-1,-1,1}, {1,-1,1},  {1,1,1}, {-1,1,1}};
+F = {{0,1,2}, {0,2,3}, {0,3,4}, {0,1,4}, {1,2,3,4}};
+r=2
+Sigma = polyhedralComplex(V,F)
+listToPolyhedra(polyhedra(1, Sigma), Sigma)
+
+P = convexHull transpose matrix {V_1, V_4}
+
+
 X = normalToricVariety(myRays, myCones);
 isSimplicial X --false
 isComplete X --true
