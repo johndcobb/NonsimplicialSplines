@@ -1,9 +1,9 @@
-needsPackage "NormalToricVarieties"; needsPackage "SimplicialComplexes"; 
-debug needsPackage "AlgebraicSplines"; needsPackage "Polyhedra";
+needsPackage "NormalToricVarieties"; needsPackage "SimplicialComplexes"; needsPackage "Polyhedra";
 needsPackage "CellularResolutions"
 
 billeraComplex = method()
 billeraComplex(List, List, ZZ) := ChainComplex => (V, F, r) -> (
+    x := symbol x;
     Sigma := polyhedralComplex(V,F); -- save data as a PolyhedralComplex
     d := #(V_0);
     R := QQ[x_0..x_(d-1)];
