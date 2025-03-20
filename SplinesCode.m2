@@ -8,6 +8,7 @@ billeraComplex(List, List, Ring, ZZ) := ChainComplex => (V, F, R, r) -> (
     -- This collects the modules that appears in each spot of the Billera complex
     B := append(for i in 1..d-1 list directSum(for P in listToPolyhedra(polyhedra(i, Sigma),Sigma) list (module R)/J(P, Sigma, R, r)) , (module R)^(#maxPolyhedra(Sigma))); -- i=1 is actually checking the vertices.
     -- then i have to create the maps between these modules....
+    C := cellComplex(R, Sigma);
     maps := for i in 0..d-2 list map(B_i, B_(i+1), boundaryMap(i+1,C));
     chainComplex(maps)
 )
