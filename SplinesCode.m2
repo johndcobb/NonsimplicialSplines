@@ -1,15 +1,13 @@
 needsPackage "NormalToricVarieties"; needsPackage "SimplicialComplexes"; needsPackage "Polyhedra";
-debug needsPackage "CellularResolutions";
 
 billeraComplex = method()
 billeraComplex(List, List, Ring, ZZ) := ChainComplex => (V, F, R, r) -> (
     Sigma := polyhedralComplex(V,F); -- save data as a PolyhedralComplex
-    d := #(V_0);
+    d := dim Sigma;
     -- This collects the modules that appears in each spot of the Billera complex
-    B := append(for i in 1..d-1 list directSum(for P in listToPolyhedra(polyhedra(i, Sigma),Sigma) list (module R)/J(P, Sigma, R, r)) , (module R)^(#maxPolyhedra(Sigma))); -- i=1 is actually checking the vertices.
+    B := append(for i in 1..d list directSum(for P in listToPolyhedra(polyhedra(i, Sigma),Sigma) list (module R)/J(P, Sigma, R, r)) , (module R)^(#maxPolyhedra(Sigma))); -- i=1 is actually checking the vertices.
     -- then i have to create the maps between these modules....
-    C := cellComplex(R, Sigma);
-    maps := for i in 0..d-2 list map(B_i, B_(i+1), boundaryMap(i+1,C));
+    maps := for i in 1..d list map(B_(i-1), B_i, promote(boundaryMaps(i,Sigma), R));
     chainComplex(maps)
 )
 billeraComplex(List, List, ZZ) := ChainComplex => (V, F, r) -> (
@@ -22,27 +20,41 @@ billeraComplex(List, List, ZZ) := ChainComplex => (V, F, r) -> (
 -- This is the i^th boundary map in the Billera complex
 boundaryMaps = method()
 boundaryMaps(ZZ, PolyhedralComplex) := Matrix => (r, Sigma) -> (
-    Vmat := vertices Sigma;
-    if r == dim Sigma then (
-        sourceCells := faces(0,fan(Sigma));
-        sourcePolyhedra := apply(sourceCells, C -> Vmat_C) / convexHull;
-    ) else (
-        sourceCells := apply(polyhedra(r+1,Sigma), P -> P_0);
-        sourcePolyhedra := listToPolyhedra(polyhedra(r+1,Sigma), Sigma);
-    );
-    targetCells := apply(polyhedra(r,Sigma), P -> P_0);
+    --Vmat := vertices Sigma;
+    --if r == dim Sigma then (
+    --    sourceCells := faces(0,fan(Sigma));
+    --    sourcePolyhedra := apply(sourceCells, C -> Vmat_C) / convexHull;
+    --) else (
+    --    sourceCells := apply(polyhedra(r+1,Sigma), P -> P_0);
+    --    sourcePolyhedra := listToPolyhedra(polyhedra(r+1,Sigma), Sigma);
+    --);
+    --targetCells := apply(polyhedra(r,Sigma), P -> P_0);
 
-    boundariesAsCones := apply(sourcePolyhedra, P -> facesAsCones(1, cone(P)));
-    boundariesAsMats := apply(boundariesAsCones, C -> apply(C, v -> submatrix'(rays v, {0}, )));
-    boundariesAsLists := apply(boundariesAsMats, L -> matsToIndex(L, Sigma));
-
-    M := map(ZZ^#targetCells, ZZ^#sourceCells, 0);
-    for i in 1..#sourceCells list (
-        for j in 1..#targetCells list (
-            -- here should go the matrix
+    Pfaces := applyPairs(faces Sigma, (i,lst) -> ((dim Sigma)-i-1,apply(lst,first)));
+    sourceCells := Pfaces#r;
+    targetCells := Pfaces#(r-1);
+    boundaries := new MutableHashTable;
+    for i from 0 to dim Sigma do (
+        for face in Pfaces#i do (
+            boundaries#face = for f in Pfaces#(i-1) list (if isSubset(f,face) then f else continue);
         );
     );
-    M
+
+    --boundariesAsCones := apply(sourcePolyhedra, P -> facesAsCones(1, cone(P)));
+   -- boundariesAsMats := apply(boundariesAsCones, C -> apply(C, v -> submatrix'(rays v, {0}, )));
+   -- boundariesAsLists := apply(boundariesAsMats, L -> matsToIndex(L, Sigma));
+
+    M := mutableMatrix map(ZZ^#targetCells, ZZ^#sourceCells, 0);
+    for i in 0..#sourceCells-1 do (
+        sourceBdd := boundaries#(sourceCells_i);
+        targetIdxs := for i in sourceBdd list (position(targetCells, targets -> targets == i));
+        orientation := 0;
+        for targetIdx in reverse(targetIdxs) do (
+            M_(targetIdx, i) = (-1)^(orientation);
+            orientation += 1;
+        );
+    );
+    matrix M
 )
 
 polyhedralComplex(List, List) := PolyhedralComplex => (V,F) -> (
@@ -85,5 +97,12 @@ matsToIndex(List, PolyhedralComplex) := List => (L, Sigma) -> (
       for numcol in 0..numColumns(M)-1 list (
       position(VList, v -> lift(v, ZZ) == M_numcol )
         )
+    )
+)
+matsToIndex(Matrix, PolyhedralComplex) := List => (M, Sigma) -> (
+    Vmat := vertices Sigma;
+    VList := for numcol in 0..(numColumns(Vmat)-1) list Vmat_numcol;
+    for numcol in 0..numColumns(M)-1 list (
+    position(VList, v -> lift(v, ZZ) == M_numcol )
     )
 )
