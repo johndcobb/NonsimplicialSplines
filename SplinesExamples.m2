@@ -16,22 +16,10 @@ Sigma = polyhedralComplex(V,F)
 B = billeraComplex(V,F,1)
 vertices Sigma
 maxPolyhedra Sigma
-Vcells = {{},{},{},{},{}} / newCell
---Fcells = apply(F, f -> newCell(apply(f, v -> Vcells_v)))
+
 
 R = QQ[x_0,x_1,x_2]
 
-cellD = cellComplex(R, Sigma) 
-boundaries = (maxCells cellD)#2 / boundary
-complexD = chainComplex(cellD)
-boundaryMap(2, cellD)
-
-cellC = cellComplex(R, Sigma)
-complexC = chainComplex(cellC)
- -- cellC and cellD have different 
-
-boundaryMap(2, cellD)
-boundaryMap(2, cellC)
 
 
 X = normalToricVariety(V,F);
@@ -48,19 +36,7 @@ minimalPresentation(S)
 reduceHilbert hilbertSeries S -- should be artinian and gorenstein, which is visible in the hilbert series
 -- even if its the cohomology ring of a blowup, it should be simpler.
 
-R = QQ[x_0,x_1,x_2]
-SigmaD = polyhedralComplex(V,F)
-SigmaC = polyhedralComplex(V,F)
-
-cellD = cellComplex(R, SigmaD) 
-cellC = cellComplex(R, SigmaC)
-
-D = billeraComplex(V,F,R, 1)
-C = billeraComplex(V,F,R,1)
-
-D == C
-
-reduceHilbert (hilbertSeries (HH_2 D)) == reduceHilbert hilbertSeries HH_2 C
+reduceHilbert (hilbertSeries (HH_2 B))
 
 -- smooth this thing by subdividing the fan. 
 -----------------------
