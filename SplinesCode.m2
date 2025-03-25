@@ -1,14 +1,21 @@
 needsPackage "NormalToricVarieties"; needsPackage "SimplicialComplexes"; needsPackage "Polyhedra";
 
 billeraComplex = method()
-billeraComplex(List, List, Ring, ZZ) := ChainComplex => (V, F, R, r) -> (
-    Sigma := polyhedralComplex(V,F); -- save data as a PolyhedralComplex
+billeraComplex(PolyhedralComplex, Ring, ZZ) := ChainComplex => (Sigma, R, r) -> (
     d := dim Sigma;
-    -- This collects the modules that appears in each spot of the Billera complex
     B := append(for i in 1..d list directSum(for P in listToPolyhedra(polyhedra(i, Sigma),Sigma) list (module R)/J(P, Sigma, R, r)) , (module R)^(#maxPolyhedra(Sigma))); -- i=1 is actually checking the vertices.
     -- then i have to create the maps between these modules....
     maps := for i in 1..d list map(B_(i-1), B_i, promote(boundaryMaps(i,Sigma), R));
     chainComplex(maps)
+)
+billeraComplex(PolyhedralComplex, ZZ) := ChainComplex => (Sigma, r) -> (
+    d := dim Sigma;
+    x := symbol x;
+    R := QQ[x_0..x_d];
+    billeraComplex(Sigma, R, r)
+)
+billeraComplex(List, List, Ring, ZZ) := ChainComplex => (V, F, R, r) -> (
+    billeraComplex(polyhedralComplex(V,F), R, r)
 )
 billeraComplex(List, List, ZZ) := ChainComplex => (V, F, r) -> (
     x := symbol x;
