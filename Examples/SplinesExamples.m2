@@ -21,7 +21,6 @@ maxPolyhedra Sigma
 R = QQ[x_0,x_1,x_2]
 
 
-
 X = normalToricVariety(V,F);
 isSimplicial X --false
 isComplete X --true
