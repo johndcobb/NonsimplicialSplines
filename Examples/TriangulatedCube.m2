@@ -1,7 +1,9 @@
 restart 
-load "SplinesCode.m2"
+load "../SplinesCode.m2"
+
 
 R = QQ[x_0,x_1,x_2];
+
 
 V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,1},{1,-1,1},{-1,1,1},{-1,-1,1}};
 F = {{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7},{4,5,7,6}};
@@ -15,14 +17,16 @@ X = normalToricVariety(V,F);
 BV = dual monomialIdeal(ideal X) 
 S = simplicialComplex(BV) -- the simplicial complex corresponding to the stanley reisner ideal 
 
-linForms = ideal flatten entries ((vars ring S)*(matrix V))
-minimalPresentation ((ring S)/(BV + linForms))
+stanReisner = minimalPresentation ((ring BV)/BV)
+fVector(S)
 
+linForms = ideal flatten entries ((vars ring BV)*(matrix V))
+cohomologyRing = minimalPresentation ((module ring BV)/(BV+linForms)) -- takes into account the rays.
 
 -*-------------------------------
 - Now, to take a barycentric subdivision of each face
 *--------------------------------
-VT = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,1},{1,-1,1},{-1,1,1},{-1,-1,1},
+VT = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,1},{1,-1, 1},{-1,1,1},{-1,-1,1},
      {0,0,-1}, {1,0,0}, {0,1,0}, {0,-1,0}, {-1,0,0}, {0,0, 1}}
 FT = {{4,6,13},{6,7,13},{7,5,13}, {5,4,13},
      {3,7,12},{7,6,12},{6,2,12},{2,3,12},
@@ -32,8 +36,31 @@ FT = {{4,6,13},{6,7,13},{7,5,13}, {5,4,13},
      {0,1,8},{1,3,8},{3,2,8},{2,0,8}} 
 
 SigmaT = polyhedralComplex(VT,FT)
+isSimplicial(SigmaT) -- true
+
+XT = normalToricVariety(VT,FT)
+BVT = dual monomialIdeal(ideal XT)
+ST = simplicialComplex(BVT) 
+
 BT = billeraComplex(SigmaT, R,  1)
 SplinesT = minimalPresentation HH_2 BT --This is equivariant cohomology ring due to payne
 
 reduceHilbert hilbertSeries SplinesT -- 1 + 11T + 11T^2 + T^3
+
+
+------- Check things that should be true here.
+stanReisnerT = module (ring(ST) / BVT)
+SplinesT == stanReisnerT / ideal( sum flatten entries vars ring(ST) - 1 ) -- this is billera's result.
+
+linformsT = ideal flatten entries ((vars ring ST)*matrix(VT))
+
+R = ZZ[t] 
+n = rank source vars ring ST
+mRS = map(R,ring ST,matrix{{n:t}})
+cohomologyRingT = minimalPresentation ( module ring(ST) / (BVT + linformsT))
+poincare(cohomologyRingT)
+hilbertSeries(cohomologyRingT, Reduce => true)
+
+-- how do i compute this? I need to map each thing to the courantFunctions
+
 

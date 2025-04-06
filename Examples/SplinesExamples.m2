@@ -7,7 +7,7 @@
 *----------------------------------------
 
 restart
-load "SplinesCode.m2"
+load "../SplinesCode.m2"
 
 V = {{0,0,-1}, {-1,-1,1}, {1,-1,1},  {-1,1,1}, {1,1,1}}; -- this defines the vertices 
 -- Note that regardless of how you arrange V, the ordering upon creating the polyhedral complex will follow reverse lexicographic order.
@@ -97,3 +97,5 @@ for M in L list (
       position(VList, v -> lift(v, ZZ) == M_numcol )
       )
 )
+
+
