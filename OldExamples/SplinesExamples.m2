@@ -99,3 +99,12 @@ for M in L list (
 )
 
 
+V = {{-1,-1}, {1,0}, {0,1}}
+F = {{0,1},{1,2}, {2,0}}
+
+R = QQ[x,y]
+
+Sigma = polyhedralComplex(V,F)
+B = billeraComplex(Sigma, R, 1)
+Splines = minimalPresentation HH_1 B
+minimalPresentation Splines/(R**Splines)

@@ -28,7 +28,6 @@ reduceHilbert hilbertSeries Splines -- 1+T+6T^2+T^3
 X = normalToricVariety(V,F)
 alexDual = dual monomialIdeal(ideal X) 
 S = simplicialComplex(alexDual) 
-fVector(S)
 
 
 C = normalToricVariety({{1,0}, {1,2}}, {{0,1}})

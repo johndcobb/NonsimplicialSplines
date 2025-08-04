@@ -2,15 +2,15 @@ restart
 load "../SplinesCode.m2"
 
 
+needsPackage "AlgebraicSplines"
 R = QQ[x_0,x_1,x_2];
-
 
 V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,1},{1,-1,1},{-1,1,1},{-1,-1,1}};
 F = {{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7},{4,5,7,6}};
 
 Sigma = polyhedralComplex(V,F)
 B = billeraComplex(Sigma, R, 1)
-Splines = minimalPresentation HH_2 B
+Splines =  HH_2 B
 reduceHilbert hilbertSeries Splines  -- 1 + T + 2T^2 + T^3 + T^4
 
 X = normalToricVariety(V,F);
@@ -22,6 +22,20 @@ fVector(S)
 
 linForms = ideal flatten entries ((vars ring BV)*(matrix V))
 cohomologyRing = minimalPresentation ((module ring BV)/(BV+linForms)) -- takes into account the rays.
+
+-----------------------------
+Fsimplicial = flatten(listToPolyhedra(maxPolyhedra(Sigma),Sigma) / barycentricTriangulation) / convexHull
+SigmaSimplicial = polyhedralComplex(Fsimplicial)
+SigmaSimplicialFaces = applyPairs(faces SigmaSimplicial, (i,lst) -> ((dim SigmaSimplicial)-i-1,apply(lst,first)))
+
+BSimplicial = billeraComplex(SigmaSimplicial, R, 1)
+SplinesSimplicial = minimalPresentation HH_2 BSimplicial
+
+XSimplicial = normalToricVariety(fan(SigmaSimplicial))
+BVSimplicial = dual monomialIdeal(ideal XSimplicial)
+SSimplicial = simplicialComplex(BVSimplicial)
+
+stanReisnerSimplicial = minimalPresentation (module ring BVSimplicial)/BVSimplicial
 
 -*-------------------------------
 - Now, to take a barycentric subdivision of each face
