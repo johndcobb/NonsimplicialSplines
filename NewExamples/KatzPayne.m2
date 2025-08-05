@@ -6,21 +6,26 @@ F = {{0,1,4},{1,2,4},{2,3,4}, {3,0,4}};
 Splines = splineModule(V,F,0, Homogenize => false)
 minimalPresentation Splines -- R + R(-1)^2 + R(-2)
 
-f = Splines_3
+f = Splines_3 
 
-sigma = coneFromVData transpose matrix{{1,1},{1,-1}}
+sigma1 = coneFromVData transpose matrix{{1,1},{1,-1}}
+unimodularTriangulation1 = {coneFromVData transpose matrix{{1,1},{1,0}}, coneFromVData transpose matrix{{1,0},{1,-1}}}
+
+sigma2 = coneFromVData transpose matrix{{1,-1},{-1,-1}}
+unimodularTriangulation2 = {coneFromVData transpose matrix{{1,-1},{0,-1}}, coneFromVData transpose matrix{{0,-1},{-1,-1}}}
+
+sigma3 = coneFromVData transpose matrix{{-1,-1},{-1,1}}
+unimodularTriangulation3 = {coneFromVData transpose matrix{{1,-1},{0,1}}, coneFromVData transpose matrix{{0,1},{-1,-1}}}
+
+sigma4 = coneFromVData transpose matrix{{-1,1},{1,1}}
+unimodularTriangulation4 = {coneFromVData transpose matrix{{-1,1},{0,1}}, coneFromVData transpose matrix{{0,1},{1,1}}}
+
+R = ZZ/32003[x,y]
+origin = coneFromVData transpose matrix{{0,0}}
+equivariantMultiplicity(sigma1, origin, R, unimodularTriangulation1)
+equivariantMultiplicity(sigma2, origin, R, unimodularTriangulation2)
+equivariantMultiplicity(sigma3, origin, R, unimodularTriangulation3)
+equivariantMultiplicity(sigma4, origin, R, unimodularTriangulation4)
+
+
 tau = coneFromVData transpose matrix{{1,1}}
-unimodularTriangulation = {coneFromVData transpose matrix{{1,1},{1,0}}, coneFromVData transpose matrix{{1,0},{1,-1}}}
-
-equivariantMultiplicity(sigma, tau,ZZ/32003[x,y], unimodularTriangulation)
-
-sigma = coneFromVData transpose matrix{{1,1},{1,-1}}
-tau = coneFromVData transpose matrix{{0,0}}
-unimodularTriangulation = {coneFromVData transpose matrix{{1,1},{1,0}}, coneFromVData transpose matrix{{1,0},{1,-1}}}
-
-equivariantMultiplicity(sigma, tau, ZZ/32003[x,y], unimodularTriangulation)
-
-sigma = coneFromVData transpose matrix{{1,1},{1,0}}
-rays dualCone sigma
-peek (dualCone sigma).cache
-peek C.cache
