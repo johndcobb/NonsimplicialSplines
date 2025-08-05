@@ -65,6 +65,13 @@ fan(List, List) := Fan => (V,F) -> (
     fan(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / coneFromVData)
 )
 
+polyhedralComplex(List, List) := PolyhedralComplex => (V,F) -> (
+    k := length(V_0);
+    VFixed := delete(toList(k:0),V);
+    zeroIdx := position(V, v -> v == toList(k:0));
+    FFixed := apply(F, face -> delete(zeroIdx, face));
+    polyhedralComplex(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / convexHull)
+)
 
 --------------------- Now methods for the chow map
 
@@ -81,13 +88,15 @@ chowMap(List, List, List, Cone) := RingElement => (f, V, F, tau) -> chowMap(spli
 
 equivariantMultiplicity = method()
 -- This computes the equivariant multiplicity of a unimodular triangulation at a cone tau
+
 equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau, R) -> (
     -- Only need to compute multiplicities if the triangle contains tau
     trianglesContainingTau := select(unimodularTriangulation, triangle -> contains(triangle, tau));
 
     sum for triangle in trianglesContainingTau list (
-        tauidxs := positions(entries transpose rays triangle, k -> k == flatten entries transpose rays tau);
-        ej := flatten entries(vars R * rays dualCone triangle);
+        dualMatrix := rays dualCone triangle;
+        tauidxs := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i != 0);
+        ej := flatten entries(vars R * dualMatrix);
         -- drop the entries corresponding to the rays of tau
         -- at least, I think the column ordering respects the order of the rays
         -- I hope
@@ -98,6 +107,19 @@ equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau
         product apply(ej, i -> 1/i)
     ) 
 )
+
+-*
+equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau, R) -> (
+    -- Only need to compute multiplicities if the triangle contains tau
+    trianglesContainingTau := select(unimodularTriangulation, triangle -> contains(triangle, tau));
+
+    sum for triangle in trianglesContainingTau list (
+        triangleFaces := facesAsCones(1, triangle);
+        ej :=  for triangleRay in select(triangleFaces, triangleRay -> not contains(tau, triangleRay)) list flatten entries( vars R * rays polar polyhedron triangleRay);
+        product apply(flatten ej, i -> 1/i)
+    ) 
+)
+*-
 
 equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
     if isUnimodular(sigma) then equivariantMultiplicity({sigma}, tau, R) else (
