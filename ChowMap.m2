@@ -100,7 +100,8 @@ equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau
         -- drop the entries corresponding to the rays of tau
         -- at least, I think the column ordering respects the order of the rays
         -- I hope
-        if not instance(tauidxs, Nothing) then (
+        if length(tauidxs) > 0 then (
+            -- comment out Complement if you want integers, but this doesn't align with code.
             tauidxsComplement := toList(set(0.. numColumns rays triangle - 1)  - set(tauidxs));
             ej = ej_tauidxsComplement
         );
