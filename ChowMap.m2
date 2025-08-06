@@ -1,4 +1,4 @@
-needsPackage "AlgebraicSplines"; needsPackage "NormalToricVarieties"; needsPackage "Polyhedra";
+needsPackage "AlgebraicSplines"; needsPackage "NormalToricVarieties"; needsPackage "Polyhedra"; needsPackage "Normaliz";
 topLevelMode = Standard
 
 
@@ -6,7 +6,16 @@ topLevelMode = Standard
 
 Spline = new Type of MutableHashTable
 
--- TODO: Make a isWellDefined method
+-*isWellDefined(Spline) := Boolean => (f) -> (
+    -- Get all maximal cones of the fan
+    maximalCones := cones(f);
+
+    pairwiseIntersections := apply(subsets(maximalCones, 2), L -> (intersect(L_0, L_1), restriction(f, L_0) - restriction(f, L_1)));
+
+    all(apply(pairwiseIntersections, (face, splineVal) -> (
+        if dim face == 0 then true else splineVal % minors(1,vars R * rays face) == 0
+    )))
+)*-
 
 expression Spline := X -> (
     if hasAttribute (X, ReverseDictionary) 
@@ -20,23 +29,17 @@ describe Spline := f -> (
     );
 )
 
-fan Spline := Fan => (f) -> (
-    f.cache#Fan
-)
-ring Spline := Ring => (f) -> (
-    f.cache#Ring
-)
-vertices Spline := List => (f) -> (
-    f.cache#Vertices
-)
-facets Spline := List => (f) -> (
-    f.cache#Facets
-)
+degree Spline := ZZ => (f) -> f.cache#Degree
+cones Spline := List => (f) -> f.cache#Cones
+fan Spline := Fan => (f) -> f.cache#Fan
+ring Spline := Ring => (f) -> f.cache#Ring
+vertices Spline := List => (f) -> f.cache#Vertices
+facets Spline := List => (f) -> f.cache#Facets
 
 spline = method(
     TypicalValue => Spline
 )
-spline(List, List, List) := Spline => (f, V, F) -> (
+spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
     (VFixed, FFixed):= removeOrigin(V,F);
 
     coneHash := hashTable(for face in FFixed list face => coneFromVData transpose matrix apply(face, idx -> VFixed_idx));
@@ -46,7 +49,10 @@ spline(List, List, List) := Spline => (f, V, F) -> (
         coneNum := position(FFixed, face -> face == coneVertices);
         f_coneNum
     );
-    return new Spline from {splineFunction => fCone, cache => hashTable{Ring => R, Vertices => VFixed, Facets => FFixed, Fan => fan(V, F)}};
+
+    Sigma := fan(V,F);
+
+    return new Spline from {splineFunction => fCone, cache => hashTable{Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Cones => facesAsCones(0, Sigma), Degree => first max(f / degree)}};
 )
 
 restriction = method()
@@ -80,8 +86,7 @@ polyhedralComplex(List, List) := PolyhedralComplex => (V,F) -> (
 chowMap = method() 
 chowMap(Spline, Cone) := RingElement => (f, tau) -> (
     R := ring(f);
-    Sigma := fan(f);
-    SigmaFaces := facesAsCones(0, Sigma);
+    SigmaFaces := cones(f);
     tauFaces := select(SigmaFaces, face -> contains(face, tau));
     sum for tauFace in tauFaces list restriction(f,tauFace)*equivariantMultiplicity(tauFace, tau, R)
 )
@@ -97,32 +102,19 @@ equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau
 
     sum for triangle in trianglesContainingTau list (
         dualMatrix := rays dualCone triangle;
-        tauidxs := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i != 0);
+        tauidxs := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i == 0);
         ej := flatten entries(vars R * dualMatrix);
         -- drop the entries corresponding to the rays of tau
         -- at least, I think the column ordering respects the order of the rays
         -- I hope
         if length(tauidxs) > 0 then (
             -- comment out Complement if you want integers, but this doesn't align with code.
-            tauidxsComplement := toList(set(0.. numColumns rays triangle - 1)  - set(tauidxs));
-            ej = ej_tauidxsComplement
+            --tauidxsComplement := toList(set(0.. numColumns rays triangle - 1)  - set(tauidxs));
+            ej = ej_tauidxs
         );
         product apply(ej, i -> 1/i)
     ) 
 )
-
--*
-equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau, R) -> (
-    -- Only need to compute multiplicities if the triangle contains tau
-    trianglesContainingTau := select(unimodularTriangulation, triangle -> contains(triangle, tau));
-
-    sum for triangle in trianglesContainingTau list (
-        triangleFaces := facesAsCones(1, triangle);
-        ej :=  for triangleRay in select(triangleFaces, triangleRay -> not contains(tau, triangleRay)) list flatten entries( vars R * rays polar polyhedron triangleRay);
-        product apply(flatten ej, i -> 1/i)
-    ) 
-)
-*-
 
 equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
     if isUnimodular(sigma) then equivariantMultiplicity({sigma}, tau, R) else (
@@ -130,20 +122,48 @@ equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
     )
 )
 isUnimodular = method()
-isUnimodular(Cone) := Boolean => (sigma) -> (abs(det rays sigma) == 1)
+isUnimodular(Cone) := Boolean => (sigma) -> (
+    sigmaRays = rays sigma;
+    if numColumns sigmaRays != numRows sigmaRays then
+        false
+    else (
+    abs(det rays sigma) == 1)
+)
 
+
+--- wait doing barycenter may not get unimodular triangulation
+-- or wait, try rescaling barycenter to be on integer lattice at each step!!
 findUnimodularTriangulation = method()
+
 findUnimodularTriangulation(Cone) := List => (sigma) -> (
-    if isUnimodular(sigma) then {sigma} else (
-        numRays := numColumns rays sigma;
-        barycenter := transpose matrix{(sum entries transpose rays sigma)/numRays};
+    if isMember(UnimodularTriangulation,keys sigma.cache) then return (sigma.cache)#UnimodularTriangulation else (
+    numRays := numColumns rays sigma;
+    if not isSimplicial(sigma) then (
+        -- need to compute a barycentric subdivision and then find unimodular triangles in those!
+        barycenter := (transpose matrix{(sum entries transpose rays sigma)})/numRays;
         subdivision := facesAsCones(0,stellarSubdivision(fan sigma, barycenter));
-        unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivision);
-        
-        fixedTriangles := {};
-        if isMember(false, keys unimodularPartition) then (
-            fixedTriangles = join(unimodularPartition#false / findUnimodularTriangulation);
-        );
-        unimodularPartition#true | fixedTriangles
+        result1 := flatten join(subdivision / findUnimodularTriangulation);
+        (sigma.cache)#UnimodularTriangulation = result1;
+        result1
+        )
+    else (
+        if isUnimodular(sigma) then {sigma} else (
+                hilbBasis := entries ((normaliz(transpose rays sigma, "integral_closure"))#"gen") ;
+                hilbRays := apply(hilbBasis, b -> coneFromVData transpose matrix{b});
+                interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma- 1, sigma), r)) / rays;
+                if length(interiorHilbRays) < 0 then error "No interior rays found and not unimodular, should implement higher translate.";
+                -- That is, I need to get a ray from a higher translate of the cone.
+                subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, interiorHilbRays_0));
+                unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivisionHilb);
+                
+                fixedTriangles := {};
+                if isMember(false, keys unimodularPartition) then (
+                    fixedTriangles = join(unimodularPartition#false / findUnimodularTriangulation);
+                );
+                result2 := unimodularPartition#true | fixedTriangles;
+                (sigma.cache)#UnimodularTriangulation = result2;
+                result2
+            )
+        )
     )
 )
