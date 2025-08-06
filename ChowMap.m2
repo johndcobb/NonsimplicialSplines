@@ -6,6 +6,8 @@ topLevelMode = Standard
 
 Spline = new Type of MutableHashTable
 
+-- TODO: Make a isWellDefined method
+
 expression Spline := X -> (
     if hasAttribute (X, ReverseDictionary) 
     then expression getAttribute (X, ReverseDictionary) else 
@@ -19,7 +21,7 @@ describe Spline := f -> (
 )
 
 fan Spline := Fan => (f) -> (
-    fan(f.cache#Vertices, f.cache#Facets)
+    f.cache#Fan
 )
 ring Spline := Ring => (f) -> (
     f.cache#Ring
@@ -35,10 +37,7 @@ spline = method(
     TypicalValue => Spline
 )
 spline(List, List, List) := Spline => (f, V, F) -> (
-    k := length(V_0);
-    VFixed := delete(toList(k:0),V);
-    zeroIdx := position(V, v -> v == toList(k:0));
-    FFixed := apply(F, face -> delete(zeroIdx, face));
+    (VFixed, FFixed):= removeOrigin(V,F);
 
     coneHash := hashTable(for face in FFixed list face => coneFromVData transpose matrix apply(face, idx -> VFixed_idx));
 
@@ -47,7 +46,7 @@ spline(List, List, List) := Spline => (f, V, F) -> (
         coneNum := position(FFixed, face -> face == coneVertices);
         f_coneNum
     );
-    return new Spline from {splineFunction => fCone, cache => hashTable{Ring => R, Vertices => VFixed, Facets => FFixed}};
+    return new Spline from {splineFunction => fCone, cache => hashTable{Ring => R, Vertices => VFixed, Facets => FFixed, Fan => fan(V, F)}};
 )
 
 restriction = method()
@@ -55,21 +54,24 @@ restriction(Spline, Cone) := RingElement => (f, sigma) -> (
     f.splineFunction(sigma)
 )
 
+removeOrigin = method()
+removeOrigin(List, List) := Sequence => (V,F) -> (
+    k := length(V_0);
+    zeroIdx := position(V, v -> v == toList(k:0));
+    VFixed := delete(toList(k:0),V);
+    FFixed := apply(F, face -> apply(delete(zeroIdx, face), idx -> if idx < zeroIdx then idx else idx-1));
+    (VFixed, FFixed)
+)
+
 
 -- This takes in V and F required to compute splines, and then creates the fan after removing the zero vector.
 fan(List, List) := Fan => (V,F) -> (
-    k := length(V_0);
-    VFixed := delete(toList(k:0),V);
-    zeroIdx := position(V, v -> v == toList(k:0));
-    FFixed := apply(F, face -> delete(zeroIdx, face));
+    (VFixed, FFixed) := removeOrigin(V,F);
     fan(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / coneFromVData)
 )
 
 polyhedralComplex(List, List) := PolyhedralComplex => (V,F) -> (
-    k := length(V_0);
-    VFixed := delete(toList(k:0),V);
-    zeroIdx := position(V, v -> v == toList(k:0));
-    FFixed := apply(F, face -> delete(zeroIdx, face));
+    (VFixed, FFixed) := removeOrigin(V,F);
     polyhedralComplex(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / convexHull)
 )
 
@@ -84,7 +86,7 @@ chowMap(Spline, Cone) := RingElement => (f, tau) -> (
     sum for tauFace in tauFaces list restriction(f,tauFace)*equivariantMultiplicity(tauFace, tau, R)
 )
 chowMap(List, List, List, Cone) := RingElement => (f, V, F, tau) -> chowMap(spline(f,V,F), tau)
-
+-- TODO: Make a chowMap(Spline) method that returns a new datatype MinkowskiWeight
 
 equivariantMultiplicity = method()
 -- This computes the equivariant multiplicity of a unimodular triangulation at a cone tau
