@@ -12,7 +12,7 @@ fromPictoCl(Cube)
 D=toricDivisor({0,0,0,0,2,2,2,2},Cube)
 isAmple D --true
 --DD = OO D --line bundle
-  --get the Cox ring
+--get the Cox ring
 Cox=ring(Cube)
 ---use Cox_D to map to projective space
 R2=QQ[t_0..t_6] --there are seven sections.
@@ -20,4 +20,4 @@ Csections=super basis({0,0,0,2,2,2,2}, Cox)
 I=kernel map(Cox,R2, Csections)
 hilbertPolynomial(coker gens I)
 IS= singularLocus I
-ISRad=primaryDecomposition(radical ideal presentation  IS)
+ISRad=primaryDecomposition(radical ideal presentation IS)
