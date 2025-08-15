@@ -74,10 +74,11 @@ removeOrigin(List, List) := Sequence => (V,F) -> (
 
 addOrigin = method()
 addOrigin(List, List) := Sequence => (V,F) -> (
-    zeroVec := toList(ambDim Sigma:0);
+    k := length(V_0);
+    zeroVec := toList(k:0);
     if isMember(zeroVec, V) then (V,F) else (
     VWithZero := append(V, zeroVec);
-    FWithZero := apply(F, face -> append(face, numColumns rays Sigma));
+    FWithZero := apply(F, face -> append(face, length V));
     (VWithZero, FWithZero)
     )
 )
@@ -212,10 +213,20 @@ maxFacesAsCones(Fan) := List => (Sigma) -> (
     V := entries transpose rays Sigma;
     (for maxCone in maxCones(Sigma) list (V_maxCone)) / transpose / matrix / coneFromVData
 )
+-*
 maxFacesAsCones(Cone) := List => (sigma) -> (
     V := entries transpose rays sigma;
     (for maxCone in maxCones(sigma) list (V_maxCone)) / transpose / matrix / coneFromVData
+)*-
+
+
+faceRing = method()
+faceRing(Fan) := Ring => Sigma -> (
+    X := normalToricVariety(Sigma);
+    B := ideal X;
+    quotient dual monomialIdeal B
 )
+faceRing(List, List) := Ring => (V, F) -> faceRing(fan(V,F))
 
 
 findUnimodularTriangulation = method()
@@ -224,16 +235,13 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
     if isMember(UnimodularTriangulation,keys sigma.cache) then return (sigma.cache)#UnimodularTriangulation else (
     if not isSimplicial(sigma) then (
         -- need to compute a barycentric subdivision and then find unimodular triangles in those!
-        barycenter := (transpose matrix{(sum entries transpose rays sigma)})/(numColumns rays sigma);
-        subdivision := facesAsCones(0,stellarSubdivision(fan sigma, barycenter));
-        result1 := flatten join(subdivision / findUnimodularTriangulation);
+        result1 := flatten join(simplicialization(sigma) / findUnimodularTriangulation);
         (sigma.cache)#UnimodularTriangulation = result1;
         result1
         )
     else (
         if isUnimodular(sigma) then {sigma} else (
-                hilbBasis := entries ((normaliz(transpose rays sigma, "integral_closure"))#"gen") ;
-                hilbRays := apply(hilbBasis, b -> coneFromVData transpose matrix{b});
+                hilbRays := getHilbRays(sigma);
                 interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma- 1, sigma), r)) / rays;
                 if length(interiorHilbRays) < 0 then error "No interior rays found and not unimodular, should implement higher translate.";
                 -- That is, I need to get a ray from a higher translate of the cone.
@@ -252,28 +260,148 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
     )
 )
 
-numRays := (sigma) -> length entries transpose rays sigma
-
-simplicialLift = method()
-simplicialLift(Cone) := Cone => (sigma) -> (
-    if isSimplicial(sigma) then sigma else (
-        disc := numRays sigma - dim sigma;
-        heightFunction := table(numRays sigma, disc, (i,j) -> random(1,10));
-        liftedCone := coneFromVData(rays sigma || transpose matrix heightFunction);
-
-        -- if the lifted cone does not have the correct dimension, try again.
-        if (numRays liftedCone - dim liftedCone) != 0 then (
-            simplicialLift(sigma)
-        )
+simplicialization = method()
+simplicialization(Fan) := Fan => (Sigma) ->  (
+    if isSimplicial Sigma then Sigma else (
+        fan(flatten join(maxFacesAsCones(Sigma) / simplicialization))
     )
 )
+simplicialization(Cone) := List => (sigma) -> (
+    if isSimplicial sigma then {sigma} else (
+        barycenter := (transpose matrix{(sum entries transpose rays sigma)})/(numColumns rays sigma);
+        subdivision := facesAsCones(0,stellarSubdivision(fan sigma, barycenter));
+        subdivision
+    )
+)
+
+numRays = (sigma) -> length entries transpose rays sigma
+
+simplicialLift = method()
 simplicialLift(Fan) := Fan => (Sigma) -> (
     if isSimplicial Sigma then Sigma else (
         V := entries transpose rays Sigma;
         F := maxCones(Sigma);
         maxDiscrepancy := max apply(F, face -> length face - dim Sigma);
-        heightFunction := table(length V, maxDiscrepancy, (i,j) -> random(maxDiscrepancy+2)); -- the max height is chosen mostly arbitrarily
+        heightFunction := table(length V, maxDiscrepancy, (i,j) -> random(-maxDiscrepancy-2,maxDiscrepancy+2)); -- the max height is chosen mostly arbitrarily
         liftedV := entries ( matrix V |  matrix heightFunction);
-        fan(liftedV, F)
+        liftedFan := fan(liftedV, F);
+        liftedFan
+        -*
+        if (isSimplicial liftedFan) and isComplete liftedFan then (
+            liftedFan
+        ) else (
+            simplicialLift(Sigma) -- try again if not simplicial or not complete
+        )
+        *-
     )
+)
+
+lawrenceLift = method()
+lawrenceLift(List, List, ZZ) := Sequence => (V,F,r) -> (
+    n := length V;
+    d := length V_0;
+    lawrenceV := (flatten table(n, r, (i,j) -> ((basis ZZ^r)_j**(transpose matrix V)_i) || (basis ZZ^n)_i))/entries;
+    lawrenceF := apply(F, face -> flatten apply(face, i -> toList(r*i..r*i+(r-1)) ));
+    (lawrenceV, lawrenceF)
+)
+
+-- Finds the chow group A_k(X) of any toric variety X with fan Sigma.
+chowGroup = method()
+
+-- This is a matrix of integers which gives the relations between the cones of codimension k in Sigma. The ordering is given by facesAsCones(k, Sigma). So to compute the chowGroup from ths presentation, you just take the cokernel of the transpose of this matrix.
+chowGroup(Fan, ZZ) := Matrix => (Sigma, k) -> (
+    -- Collect cones of codimension k+1 (taus) and codimension k (sigmas).
+    -- We will produce one relation row per tau and one column per sigma.
+    tauClasses := facesAsCones(k+1, Sigma);
+    sigmaClasses := facesAsCones(k, Sigma);
+    numClasses := length sigmaClasses;
+
+    -- If there are no (k+1)-cones then there are no relations: return zero matrix.
+    if tauClasses == {} then (
+        return map(ZZ^numClasses, ZZ^numClasses, 0)
+    ) else (
+    -- For each tau build a row of the relation matrix.  Each entry is obtained
+    -- by evaluating basis elements of M_tau on the primitive vector that extends
+    -- tau to an adjacent sigma, and then dividing by the lattice index to
+    -- account for non-primitive extensions.
+    matrix flatten for tau in tauClasses list (
+            -- Mtau is a Z-basis for the lattice M restricted to the sublattice
+            -- orthogonal to tau; these are the integer linear functionals we use
+            -- to evaluate extension vectors v.
+            Mtau := entries transpose kernelLLL ((transpose rays tau));
+            Ntau := if dim tau != 0 then rays tau else map(ZZ^(dim Sigma), ZZ^1, 0);
+            table(Mtau, sigmaClasses, (u, sigma) -> (
+                if contains(sigma, tau) then (
+                    -- Nsigma and Ntau are the ray matrices (columns are generators)
+                    Nsigma := rays sigma;
+
+                    -- Find a generator v for the quotient lattice N_sigma / N_tau.
+                    -- kernelLLL(Nsigma | Ntau) returns integer relations; we pick
+                    -- the appropriate column (vidx) and use it to form v in the
+                    -- ambient coordinates of Nsigma.
+                    vidx := position(flatten entries kernelLLL(Nsigma | Ntau), i -> i== 0);
+                    v:= Nsigma_vidx;
+
+                    -- Compute the lattice index [N_tau + Z v : N_tau] by applying
+                    -- Smith normal form to (Ntau | v).  The diagonal entry at
+                    -- (rank Ntau, rank Ntau) equals this index (1 if v is primitive).
+                    D := smithNormalForm(Ntau | matrix v, ChangeMatrix => {false, false});
+                    latticeIdx := D_(rank Ntau, rank Ntau);
+
+                    -- Evaluate u on v and divide by the lattice index.  This
+                    -- gives the integer relation coefficient for this (tau,sigma)
+                    -- pair.  Note: orientation/sign conventions may affect the
+                    -- global sign; keep that in mind if results disagree by -1.
+                    (flatten entries ((matrix {u})*v))_0 // latticeIdx
+                ) else (
+                    0
+                )
+            ))
+        )
+    )
+)
+-*chowGroup(Fan, ZZ) := Sequence => (Sigma, k) -> (
+    symbol x;
+    tauClasses := facesAsCones(k+1, Sigma);
+    sigmaClasses := facesAsCones(k, Sigma);
+    R := QQ[x_1..x_(length sigmaClasses)];
+    if tauClasses == {} then (
+        return R
+    ) else (
+    var := sigma -> (
+        idx := position(sigmaClasses, sigmaclass -> sigmaclass == sigma);
+        if idx === null then error "Cone not found in codimkClasses" else R_(idx)
+    );
+    relationList := flatten for tau in tauClasses list (
+        tauDualGens := if dim tau == 0 then (
+            apply(entries map(ZZ^(ambDim Sigma), ZZ^(ambDim Sigma), 1), column -> coneFromVData transpose matrix{column}) 
+            ) else (
+            getHilbRays(dualCone tau)
+        );
+        conesContainingTau := select(sigmaClasses, sigma -> contains(sigma, tau));
+        flatten for u in tauDualGens list (
+            sum for sigma in conesContainingTau list (
+                dualMatrix := rays dualCone sigma;
+                nidx := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i == 0);
+                flatten entries ((transpose rays u)*dualMatrix_(nidx)*var(sigma))
+            )
+        )
+    );
+    (sigmaClasses, relationList))
+)*-
+
+operationalChowGroup = method()
+operationalChowGroup(Fan, ZZ) := Module => (Sigma, k) -> (
+    if isComplete Sigma then (
+        Hom(coker transpose chowGroup(Sigma, k), ZZ) -- This is true by Theorem 2.1 in Fulton-Sturmfels
+    ) else (
+        error("Fan is not complete, need to implement Kimura's inductive method.")
+    )
+)
+
+getHilbRays = method()
+getHilbRays(Cone) := List => sigma -> (
+    hilbBasis := entries ((normaliz(transpose rays sigma, "integral_closure"))#"gen") ;
+    hilbRays := apply(hilbBasis, b -> coneFromVData transpose matrix{b});
+    hilbRays
 )
