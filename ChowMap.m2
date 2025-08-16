@@ -248,16 +248,21 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
                 subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, interiorHilbRays_0));
                 unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivisionHilb);
                 
+                correctTriangles := if isMember(true, keys unimodularPartition) then unimodularPartition#true else {};
                 fixedTriangles := {};
                 if isMember(false, keys unimodularPartition) then (
-                    fixedTriangles = join(unimodularPartition#false / findUnimodularTriangulation);
+                    fixedTriangles = flatten join(unimodularPartition#false / findUnimodularTriangulation);
                 );
-                result2 := unimodularPartition#true | fixedTriangles;
+                result2 := join(correctTriangles,fixedTriangles);
                 (sigma.cache)#UnimodularTriangulation = result2;
                 result2
             )
         )
     )
+)
+findUnimodularTriangulation(Fan) := Fan => (Sigma) -> (
+    unimodularCones := flatten apply(maxFacesAsCones(Sigma), sigma -> findUnimodularTriangulation(sigma));
+    fan unimodularCones
 )
 
 simplicialization = method()
@@ -339,20 +344,28 @@ chowGroup(Fan, ZZ) := Matrix => (Sigma, k) -> (
                     -- kernelLLL(Nsigma | Ntau) returns integer relations; we pick
                     -- the appropriate column (vidx) and use it to form v in the
                     -- ambient coordinates of Nsigma.
-                    vidx := position(flatten entries kernelLLL(Nsigma | Ntau), i -> i== 0);
-                    v:= Nsigma_vidx;
+                    
+                    sigmaRays := set entries transpose Nsigma;
+                    tauRays := set entries transpose Ntau;
+                    vRays := toList(sigmaRays - tauRays);
+
+                    if #vRays == 0 and dim sigma > dim tau then error "Could not find an extending ray from tau to sigma.";
+                    if #vRays == 0 then return 0; -- Case where sigma == tau
+                    v := transpose matrix{vRays_0};
+                    
 
                     -- Compute the lattice index [N_tau + Z v : N_tau] by applying
                     -- Smith normal form to (Ntau | v).  The diagonal entry at
                     -- (rank Ntau, rank Ntau) equals this index (1 if v is primitive).
-                    D := smithNormalForm(Ntau | matrix v, ChangeMatrix => {false, false});
+                    D := smithNormalForm(Ntau | v, ChangeMatrix => {false, false});
                     latticeIdx := D_(rank Ntau, rank Ntau);
-
+        
                     -- Evaluate u on v and divide by the lattice index.  This
                     -- gives the integer relation coefficient for this (tau,sigma)
                     -- pair.  Note: orientation/sign conventions may affect the
                     -- global sign; keep that in mind if results disagree by -1.
-                    (flatten entries ((matrix {u})*v))_0 // latticeIdx
+
+                    (flatten entries (matrix{u}*v))_0 // abs latticeIdx
                 ) else (
                     0
                 )
