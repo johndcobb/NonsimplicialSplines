@@ -26,7 +26,12 @@ chowMap(Spline) := MinkowskiWeight => f -> (
 chowMap(Spline, Cone) := RingElement => (f, tau) -> (
     R := ring(f);
     SigmaFaces := cones(f);
-    tauFaces := select(SigmaFaces, face -> contains(face, tau));
+    --tauFaces := select(SigmaFaces, face -> contains(face, tau));
+    tauFaces := select(SigmaFaces, triangle -> isFace(tau, triangle));
+    -*for tauFace in tauFaces do (
+        << "Cone containing tau: " << rays tauFace << endl;
+    );*-
+    -- TODO: This calculations equivariant multiplicity even when spline is zero. Should fix this for speed.
     sum for tauFace in tauFaces list restriction(f,tauFace)*equivariantMultiplicity(tauFace, tau, R)
 )
 chowMap(List, List, List, Cone) := RingElement => (f, V, F, tau) -> chowMap(spline(f,V,F), tau)
@@ -37,9 +42,14 @@ equivariantMultiplicity = method()
 
 equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau, R) -> (
     -- Only need to compute multiplicities if the triangle contains tau
+    trianglesIntersectingTau := select(unimodularTriangulation, triangle -> (dim intersect(triangle, tau)) == dim tau);
     trianglesContainingTau := select(unimodularTriangulation, triangle -> contains(triangle, tau));
+    --- The below is trying to account for situations outside of Lemma 2.7 -- tau intersects sigma but does not contain it. In this case, this method overcounts....
+    -- Honestly, a little bit confused about this but it seems to work. If there is a problem, check here.
+    diffTriangles := length trianglesIntersectingTau - length trianglesContainingTau;
+    latticeVolume := if diffTriangles != 0 then diffTriangles else 1;
 
-    sum for triangle in trianglesContainingTau list (
+    sum for triangle in trianglesIntersectingTau list (
         dualMatrix := rays dualCone triangle;
         tauidxs := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i == 0);
         ej := flatten entries(vars R * dualMatrix);
@@ -50,9 +60,9 @@ equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau
             -- comment out Complement if you want integers, but this doesn't align with code.
             --tauidxsComplement := toList(set(0.. numColumns rays triangle - 1)  - set(tauidxs));
             ej = ej_tauidxs;
-            product apply(ej, i -> 1/i)
+            (product apply(ej, i -> 1/i))/ latticeVolume
         ) else (
-            1
+            1 / latticeVolume
         )
     ) 
 )
