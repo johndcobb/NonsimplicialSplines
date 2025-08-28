@@ -1,7 +1,5 @@
 -* So it looks like we don’t need to translate the P monomials to monomials in the lattice M, can just use them straight up. Here is the way to embed X_\Sigma where \Sigma comes from coning over faces of symmetric cube, and using the divisor {0,0,0,2,2,2,2}.
 *-
-
-loadPackage "NormalToricVarieties" --labelling in working notes
 CubeRays={{1,-1,-1},{-1,-1,-1},{1,1,-1},{-1,1,-1},{1,-1,1},{-1,-1,1},{1,1,1},{-1,1,1}}
 CubeCones={{0,1,2,3},{0,1,4,5},{0,2,4,6},{1,3,5,7},{2,3,6,7},{4,5,6,7}}
 Cube=normalToricVariety(CubeRays, CubeCones)

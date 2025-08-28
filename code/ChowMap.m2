@@ -1,4 +1,4 @@
-needsPackage "AlgebraicSplines"; needsPackage "NormalToricVarieties"; needsPackage "Polyhedra"; needsPackage "Normaliz";
+needsPackage "AlgebraicSplines"; needsPackage "NormalToricVarieties"; needsPackage "Polyhedra"; needsPackage "Normaliz"; needsPackage "LLLBases";
 topLevelMode = Standard
 
 
@@ -39,23 +39,26 @@ facets Spline := List => (f) -> f.cache#Facets
 spline = method(
     TypicalValue => Spline
 )
-spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
-    (VFixed, FFixed):= removeOrigin(V,F);
+spline(List, Fan, Ring) := Spline => (f, Sigma, R) -> (
+    (V,F) := (entries transpose rays Sigma, maxCones Sigma);
 
-    if length gens R != length first VFixed then error "The number of generators in the ring must match the dimension of fan.";
+    if length gens R != length first V then error "The number of generators in the ring must match the dimension of fan.";
 
-    coneHash := hashTable(for face in FFixed list face => coneFromVData transpose matrix apply(face, idx -> VFixed_idx));
+    coneHash := hashTable(for face in F list face => coneFromVData transpose matrix apply(face, idx -> V_idx));
 
     fCone := inputCone -> (
         coneVertices := (keys selectValues(coneHash, k -> k == inputCone))_0;
-        coneNum := position(FFixed, face -> face == coneVertices);
-        f_coneNum
+        coneNum := position(F, face -> face == coneVertices);
+        promote(f_coneNum, R)
     );
 
-    Sigma := fan(V,F);
-
-    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Cones => facesAsCones(0, Sigma), Degree => first max(f / degree)}};
+    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Cones => maxFacesAsCones(Sigma), Degree => first max(f / degree)}};
 )
+spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
+    (VFixed, FFixed):= removeOrigin(V,F);
+    spline(f, fan(VFixed,FFixed), R)
+)
+
 
 restriction = method()
 restriction(Spline, Cone) := RingElement => (f, sigma) -> (
@@ -116,8 +119,8 @@ minkowskiWeight = method(
 
 cones MinkowskiWeight := List => (mw) -> (mw.cache)#Cones
 
-minkowskiMatrix = method()
-minkowskiMatrix(MinkowskiWeight) := List => (mw) -> (
+mat = method()
+mat(MinkowskiWeight) := List => (mw) -> (
     if isMember(Mat, keys mw.cache) then return (mw.cache)#Mat else (
         result := transpose matrix{apply(cones mw, c -> weight(mw, c))};
         (mw.cache)#Mat = result;
@@ -136,18 +139,22 @@ weight(MinkowskiWeight, Cone) := ZZ => (mw, tau) -> (
 minkowskiWeight(Fan, FunctionClosure, ZZ) := MinkowskiWeight => (Sigma, chowmap, coneCodim) -> (
     -- weightFunction should take in a cone and return an integer
     -- We should check the balancing condition here.
-    
 
     new MinkowskiWeight from {weightFunction => chowmap, cache => new MutableHashTable from {Fan => Sigma, Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
 )
 
 --------------------- Now methods for the chow map
-splineList = (Splines, V, F, R) -> for splineCol in entries transpose generators Splines list spline(splineCol, V, F, R)
+splineList = method()
+splineList(Module, Fan, Ring) := (Splines, Sigma, R) -> for splineCol in entries transpose generators (Splines**R) list spline(splineCol, Sigma, R)
+splineList(Module, List, List, Ring) := (Splines, V, F, R) -> (
+    Sigma = fan(V,F);
+    splineList(Splines, Sigma, R)
+)
 
 chowMap = method() 
 chowMap(List, ZZ) := RingElement => (splineList,d) -> (
     splineListd := select(splineList, f -> degree f == d);
-    transpose matrix (splineListd / chowMap / minkowskiMatrix / entries / flatten)
+    transpose matrix (splineListd / chowMap / mat / entries / flatten)
 )
 
 chowMap(Spline) := MinkowskiWeight => f -> (
@@ -412,9 +419,32 @@ operationalChowGroup(Fan, ZZ) := Module => (Sigma, k) -> (
     )
 )
 
+
+FanMap = new Type of MutableHashTable
+
+map(Fan, Fan, Matrix) := FanMap => opts -> (Sigma2, Sigma1, phi) -> (
+    (N, L) := (target phi, source phi);
+    if ambDim Sigma1 != rank L then error "Lattice dimension of source does not match ambient dimension of source fan.";
+    if ambDim Sigma2 != rank N then error "Lattice dimension of target does not match ambient dimension of target fan.";
+    if not mapsConestoCones(Sigma2, Sigma1, phi) then error "Map does not send cones to cones.";
+    new FanMap from {source => Sigma1, target => Sigma2, map => phi}
+)
+
+mat FanMap := Matrix => (f) -> f#map
+
+
 getHilbRays = method()
 getHilbRays(Cone) := List => sigma -> (
     hilbBasis := entries ((normaliz(transpose rays sigma, "integral_closure"))#"gen") ;
     hilbRays := apply(hilbBasis, b -> coneFromVData transpose matrix{b});
     hilbRays
 )
+
+
+mapsConestoCones = method()
+mapsConestoCones(Fan, Fan, Matrix) := Boolean => (Sigma2, Sigma1, phi) -> (
+    all(apply(maxFacesAsCones(Sigma1), sigma -> (
+        imagePhi := affineImage(phi, sigma);
+        any(apply(maxFacesAsCones(Sigma2), tau -> contains(tau, imagePhi)), bool -> bool)
+            )), bool -> bool)
+    )
