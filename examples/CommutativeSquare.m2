@@ -1,4 +1,4 @@
-load "../ChowMap.m2"
+load "../code/ChowMap.m2"
 ------------------------------------------------------
 -* Explanation
 Let X' --> X be a simplicialization of a complete toric variety X. We have the following maps:

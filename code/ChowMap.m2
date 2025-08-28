@@ -1,155 +1,11 @@
 needsPackage "AlgebraicSplines"; needsPackage "NormalToricVarieties"; needsPackage "Polyhedra"; needsPackage "Normaliz"; needsPackage "LLLBases";
 topLevelMode = Standard
+needs "./helpers.m2"
+needs "./Splines.m2"
+needs "./MinkowskiWeights.m2"
 
-
---------- Methods for Splines
-
-Spline = new Type of MutableHashTable
-
--*isWellDefined(Spline) := Boolean => (f) -> (
-    -- Get all maximal cones of the fan
-    maximalCones := cones(f);
-
-    pairwiseIntersections := apply(subsets(maximalCones, 2), L -> (intersect(L_0, L_1), restriction(f, L_0) - restriction(f, L_1)));
-
-    all(apply(pairwiseIntersections, (face, splineVal) -> (
-        if dim face == 0 then true else splineVal % minors(1,vars R * rays face) == 0
-    )))
-)*-
-
-expression Spline := X -> (
-    if hasAttribute (X, ReverseDictionary) 
-    then expression getAttribute (X, ReverseDictionary) else 
-    (describe X)
-)
-describe Spline := f -> (
-    for facet in maxFacesAsCones(fan(f)) do (
-        << "Facet: " | net rays facet | " Value: " | net f.splineFunction(facet)
-        << endl << endl
-    );
-)
-
-degree Spline := ZZ => (f) -> f.cache#Degree
-cones Spline := List => (f) -> f.cache#Cones
-fan Spline := Fan => (f) -> f.cache#Fan
-ring Spline := Ring => (f) -> f.cache#Ring
-vertices Spline := List => (f) -> f.cache#Vertices
-facets Spline := List => (f) -> f.cache#Facets
-
-spline = method(
-    TypicalValue => Spline
-)
-spline(List, Fan, Ring) := Spline => (f, Sigma, R) -> (
-    (V,F) := (entries transpose rays Sigma, maxCones Sigma);
-
-    if length gens R != length first V then error "The number of generators in the ring must match the dimension of fan.";
-
-    coneHash := hashTable(for face in F list face => coneFromVData transpose matrix apply(face, idx -> V_idx));
-
-    fCone := inputCone -> (
-        coneVertices := (keys selectValues(coneHash, k -> k == inputCone))_0;
-        coneNum := position(F, face -> face == coneVertices);
-        promote(f_coneNum, R)
-    );
-
-    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Cones => maxFacesAsCones(Sigma), Degree => first max(f / degree)}};
-)
-spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
-    (VFixed, FFixed):= removeOrigin(V,F);
-    spline(f, fan(VFixed,FFixed), R)
-)
-
-
-restriction = method()
-restriction(Spline, Cone) := RingElement => (f, sigma) -> (
-    f.splineFunction(sigma)
-)
-
-removeOrigin = method()
-removeOrigin(List, List) := Sequence => (V,F) -> (
-    k := length(V_0);
-    zeroIdx := position(V, v -> v == toList(k:0));
-    if zeroIdx === null then (V,F) else (
-    VFixed := delete(toList(k:0),V);
-    FFixed := apply(F, face -> apply(delete(zeroIdx, face), idx -> if idx < zeroIdx then idx else idx-1));
-    (VFixed, FFixed))
-)
-
-addOrigin = method()
-addOrigin(List, List) := Sequence => (V,F) -> (
-    k := length(V_0);
-    zeroVec := toList(k:0);
-    if isMember(zeroVec, V) then (V,F) else (
-    VWithZero := append(V, zeroVec);
-    FWithZero := apply(F, face -> append(face, length V));
-    (VWithZero, FWithZero)
-    )
-)
-
--* Getting V and F from a fan Sigma:
-    V := entries transpose rays Sigma;
-    F := maxCones(Sigma);
-*-
-
-
--- This takes in V and F required to compute splines, and then creates the fan after removing the zero vector.
-fan(List, List) := Fan => (V,F) -> (
-    (VFixed, FFixed) := removeOrigin(V,F);
-    fan(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / coneFromVData)
-)
-
-polyhedralComplex(List, List) := PolyhedralComplex => (V,F) -> (
-    (VFixed, FFixed) := removeOrigin(V,F);
-    polyhedralComplex(apply(FFixed, C -> transpose matrix apply(C, idx -> VFixed_idx)) / convexHull)
-)
-
-splineModule(Fan, ZZ) := Matrix => opts -> (Sigma, r) -> (
-    V := entries transpose rays Sigma;
-    F := maxCones(Sigma);
-    (VWithZero, FWithZero) := addOrigin(V,F);
-    splineModule(VWithZero, FWithZero, r, opts)
-)
-
--------------
-MinkowskiWeight = new Type of MutableHashTable
-
-minkowskiWeight = method(
-    TypicalValue => MinkowskiWeight
-)
-
-cones MinkowskiWeight := List => (mw) -> (mw.cache)#Cones
-
-mat = method()
-mat(MinkowskiWeight) := List => (mw) -> (
-    if isMember(Mat, keys mw.cache) then return (mw.cache)#Mat else (
-        result := transpose matrix{apply(cones mw, c -> weight(mw, c))};
-        (mw.cache)#Mat = result;
-        result
-    )
-)
-
-fan MinkowskiWeight := Fan => (mw) -> mw.cache#Fan
-dim(MinkowskiWeight) := ZZ => (mw) -> dim fan mw - (mw.cache)#Codimension
-
-weight = method()
-weight(MinkowskiWeight, Cone) := ZZ => (mw, tau) -> (
-    mw.weightFunction(tau)
-)
-
-minkowskiWeight(Fan, FunctionClosure, ZZ) := MinkowskiWeight => (Sigma, chowmap, coneCodim) -> (
-    -- weightFunction should take in a cone and return an integer
-    -- We should check the balancing condition here.
-
-    new MinkowskiWeight from {weightFunction => chowmap, cache => new MutableHashTable from {Fan => Sigma, Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
-)
 
 --------------------- Now methods for the chow map
-splineList = method()
-splineList(Module, Fan, Ring) := (Splines, Sigma, R) -> for splineCol in entries transpose generators (Splines**R) list spline(splineCol, Sigma, R)
-splineList(Module, List, List, Ring) := (Splines, V, F, R) -> (
-    Sigma = fan(V,F);
-    splineList(Splines, Sigma, R)
-)
 
 chowMap = method() 
 chowMap(List, ZZ) := RingElement => (splineList,d) -> (
@@ -206,6 +62,7 @@ equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
         equivariantMultiplicity(findUnimodularTriangulation(sigma), tau, R)
     )
 )
+
 isUnimodular = method()
 isUnimodular(Cone) := Boolean => (sigma) -> (
     sigmaRays = rays sigma;
@@ -215,25 +72,6 @@ isUnimodular(Cone) := Boolean => (sigma) -> (
     abs(det rays sigma) == 1)
 )
 
-maxFacesAsCones = method()
-maxFacesAsCones(Fan) := List => (Sigma) -> (
-    V := entries transpose rays Sigma;
-    (for maxCone in maxCones(Sigma) list (V_maxCone)) / transpose / matrix / coneFromVData
-)
--*
-maxFacesAsCones(Cone) := List => (sigma) -> (
-    V := entries transpose rays sigma;
-    (for maxCone in maxCones(sigma) list (V_maxCone)) / transpose / matrix / coneFromVData
-)*-
-
-
-faceRing = method()
-faceRing(Fan) := Ring => Sigma -> (
-    X := normalToricVariety(Sigma);
-    B := ideal X;
-    quotient dual monomialIdeal B
-)
-faceRing(List, List) := Ring => (V, F) -> faceRing(fan(V,F))
 
 
 findUnimodularTriangulation = method()
@@ -284,37 +122,6 @@ simplicialization(Cone) := List => (sigma) -> (
         subdivision := facesAsCones(0,stellarSubdivision(fan sigma, barycenter));
         subdivision
     )
-)
-
-numRays = (sigma) -> length entries transpose rays sigma
-
-simplicialLift = method()
-simplicialLift(Fan) := Fan => (Sigma) -> (
-    if isSimplicial Sigma then Sigma else (
-        V := entries transpose rays Sigma;
-        F := maxCones(Sigma);
-        maxDiscrepancy := max apply(F, face -> length face - dim Sigma);
-        heightFunction := table(length V, maxDiscrepancy, (i,j) -> random(-maxDiscrepancy-2,maxDiscrepancy+2)); -- the max height is chosen mostly arbitrarily
-        liftedV := entries ( matrix V |  matrix heightFunction);
-        liftedFan := fan(liftedV, F);
-        liftedFan
-        -*
-        if (isSimplicial liftedFan) and isComplete liftedFan then (
-            liftedFan
-        ) else (
-            simplicialLift(Sigma) -- try again if not simplicial or not complete
-        )
-        *-
-    )
-)
-
-lawrenceLift = method()
-lawrenceLift(List, List, ZZ) := Sequence => (V,F,r) -> (
-    n := length V;
-    d := length V_0;
-    lawrenceV := (flatten table(n, r, (i,j) -> ((basis ZZ^r)_j**(transpose matrix V)_i) || (basis ZZ^n)_i))/entries;
-    lawrenceF := apply(F, face -> flatten apply(face, i -> toList(r*i..r*i+(r-1)) ));
-    (lawrenceV, lawrenceF)
 )
 
 -- Finds the chow group A_k(X) of any toric variety X with fan Sigma.
@@ -418,33 +225,3 @@ operationalChowGroup(Fan, ZZ) := Module => (Sigma, k) -> (
         error("Fan is not complete, need to implement Kimura's inductive method.")
     )
 )
-
-
-FanMap = new Type of MutableHashTable
-
-map(Fan, Fan, Matrix) := FanMap => opts -> (Sigma2, Sigma1, phi) -> (
-    (N, L) := (target phi, source phi);
-    if ambDim Sigma1 != rank L then error "Lattice dimension of source does not match ambient dimension of source fan.";
-    if ambDim Sigma2 != rank N then error "Lattice dimension of target does not match ambient dimension of target fan.";
-    if not mapsConestoCones(Sigma2, Sigma1, phi) then error "Map does not send cones to cones.";
-    new FanMap from {source => Sigma1, target => Sigma2, map => phi}
-)
-
-mat FanMap := Matrix => (f) -> f#map
-
-
-getHilbRays = method()
-getHilbRays(Cone) := List => sigma -> (
-    hilbBasis := entries ((normaliz(transpose rays sigma, "integral_closure"))#"gen") ;
-    hilbRays := apply(hilbBasis, b -> coneFromVData transpose matrix{b});
-    hilbRays
-)
-
-
-mapsConestoCones = method()
-mapsConestoCones(Fan, Fan, Matrix) := Boolean => (Sigma2, Sigma1, phi) -> (
-    all(apply(maxFacesAsCones(Sigma1), sigma -> (
-        imagePhi := affineImage(phi, sigma);
-        any(apply(maxFacesAsCones(Sigma2), tau -> contains(tau, imagePhi)), bool -> bool)
-            )), bool -> bool)
-    )

@@ -231,3 +231,4 @@ base NormalToricVariety  := X -> if X.cache.?Base  then X.cache.Base  else X
 -- TODO: technically not always correct
 fiber = method()
 fiber NormalToricVariety := X -> if X.cache.?Fiber then X.cache.Fiber else X.cache.CoefficientRing^(dim X + 1)
+
