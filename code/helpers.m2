@@ -80,6 +80,7 @@ source FanMap := Fan => f -> f#source
 
 facesAsCones(Fan) := List => Sigma -> flatten for k from 0 to dim Sigma  list facesAsCones(k,Sigma)
 
+--- Let phi: Delta' --> Delta. This collects the minimal cones tau such that phi(sigma) is contained in tau. If the morphism is strict, there will be exactly one such cone for each sigma. 
 imageCones = method()
 imageCones(FanMap, Cone) := Cone => (phi, sigma) -> (
     imagePhi := affineImage(phi#map, sigma);
