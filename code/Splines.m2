@@ -62,6 +62,13 @@ restriction(Spline, Cone) := RingElement => (f, sigma) -> (
     f.splineFunction(sigma)
 )
 
+pushforward = method()
+pushforward(FanMap, Spline) := Spline => (psi, inputSpline) -> (
+    assert(isStrict(psi)); -- ensure every cone is sent to only one cone.
+    pushforwardSpline := apply(maxFacesAsCones Delta', sigma -> restriction(inputSpline,(imageCones(psi, sigma))_0) );
+    spline(pushforwardSpline, Delta', R)
+)
+
 splineList = method()
 splineList(Module, Fan, Ring) := (Splines, Sigma, R) -> for splineCol in entries transpose generators (Splines**R) list spline(splineCol, Sigma, R)
 splineList(Module, List, List, Ring) := (Splines, V, F, R) -> (
