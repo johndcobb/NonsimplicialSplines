@@ -32,3 +32,8 @@ minkowskiWeight(Fan, FunctionClosure, ZZ) := MinkowskiWeight => (Sigma, chowmap,
 
     new MinkowskiWeight from {weightFunction => chowmap, cache => new MutableHashTable from {Fan => Sigma, Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
 )
+
+MinkowskiWeight + MinkowskiWeight := MinkowskiWeight => (mw1, mw2) -> (
+    if fan mw1 != fan mw2 or dim mw1 != dim mw2 then error "Minkowski weights must be on the same fan and have the same codimension to be added.";
+    new MinkowskiWeight from {weightFunction => (tau -> weight(mw1,tau) + weight(mw2,tau)), cache => new MutableHashTable from {Fan => fan mw1, Cones => cones mw1, Codimension => (mw1.cache)#Codimension}}
+)
