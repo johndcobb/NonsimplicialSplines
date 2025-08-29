@@ -78,11 +78,24 @@ mat FanMap := Matrix => (f) -> f#map
 target FanMap := Fan => f -> f#target
 source FanMap := Fan => f -> f#source
 
+facesAsCones(Fan) := List => Sigma -> flatten for k from 0 to dim Sigma  list facesAsCones(k,Sigma)
 
 imageCones = method()
 imageCones(FanMap, Cone) := Cone => (phi, sigma) -> (
     imagePhi := affineImage(phi#map, sigma);
-    select(maxFacesAsCones(phi#target), tau -> contains(tau, imagePhi))
+   -- select(maxFacesAsCones(phi#target), tau -> contains(tau, imagePhi))
+   -- gather every cone of the target by taking faces of each maximal cone
+
+    -- all cones of the target fan
+    allTargetCones := facesAsCones(phi#target);
+
+    -- cones that contain the image
+    candidates := select(allTargetCones, tau -> contains(tau, imagePhi));
+
+    -- keep only those candidates that are minimal w.r.t. inclusion
+    minimalCandidates := select(candidates, c -> not any(candidates, d -> (not (d == c)) and contains(c, d)));
+
+    minimalCandidates
 )
 
 getHilbRays = method()
