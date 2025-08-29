@@ -35,7 +35,8 @@ minkowskiWeight(Fan, FunctionClosure, ZZ) := MinkowskiWeight => (Sigma, chowmap,
 
 pullback(FanMap, MinkowskiWeight) := MinkowskiWeight => {} >> opts -> (psi, mw) -> (
     k := dim(psi#source) - dim mw;
-    assert(isStrict(psi)); -- I think we need this to get a unique tau' corresponding to tau
+    assert(isStrict(psi));
+    assert(fan mw == target psi); 
     weightFunction := tau -> (
         tau' := (imageCones(psi, tau))_0;
         if ambDim tau' - dim tau' != k then 0 else (
@@ -58,7 +59,7 @@ pullback(FanMap, MinkowskiWeight) := MinkowskiWeight => {} >> opts -> (psi, mw) 
             (abs diagProduct) * weight(mw, tau')
         )
     );
-    minkowskiWeight(psi#target, weightFunction, k)
+    minkowskiWeight(psi#source, weightFunction, k)
 )
 
 MinkowskiWeight + MinkowskiWeight := MinkowskiWeight => (mw1, mw2) -> (
