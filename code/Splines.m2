@@ -62,11 +62,11 @@ restriction(Spline, Cone) := RingElement => (f, sigma) -> (
     f.splineFunction(sigma)
 )
 
-pushforward = method()
-pushforward(FanMap, Spline) := Spline => (psi, inputSpline) -> (
+pullback(FanMap, Spline) := Spline => {} >> opts -> (psi, inputSpline) -> (
     assert(isStrict(psi)); -- ensure every cone is sent to only one cone.
-    pushforwardSpline := apply(maxFacesAsCones psi#source, sigma -> restriction(inputSpline,(imageCones(psi, sigma))_0) );
-    spline(pushforwardSpline, psi#source, R)
+    assert(fan inputSpline == target psi); -- ensure the spline is on the source fan.
+    pullbackSpline := apply(maxFacesAsCones psi#source, sigma -> restriction(inputSpline,(imageCones(psi, sigma))_0) );
+    spline(pullbackSpline, psi#source, R)
 )
 
 splineList = method()
