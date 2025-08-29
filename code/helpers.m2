@@ -60,7 +60,7 @@ numRays = (sigma) -> length entries transpose rays sigma
 
 FanMap = new Type of MutableHashTable
 
-mat = method()
+
 map(Fan, Fan, Matrix) := FanMap => opts -> (Sigma2, Sigma1, phi) -> (
     (N, L) := (target phi, source phi);
     if ambDim Sigma1 != rank L then error "Lattice dimension of source does not match ambient dimension of source fan.";
@@ -69,8 +69,21 @@ map(Fan, Fan, Matrix) := FanMap => opts -> (Sigma2, Sigma1, phi) -> (
     new FanMap from {source => Sigma1, target => Sigma2, map => phi}
 )
 
+--isStrict = method()
+isStrict(FanMap) := Boolean => f -> all(maxFacesAsCones(f#source), sigma -> length imageCones(f,sigma) == 1)
+
+mat = method()
 mat FanMap := Matrix => (f) -> f#map
 
+target FanMap := Fan => f -> f#target
+source FanMap := Fan => f -> f#source
+
+
+imageCones = method()
+imageCones(FanMap, Cone) := Cone => (phi, sigma) -> (
+    imagePhi := affineImage(phi#map, sigma);
+    select(maxFacesAsCones(phi#target), tau -> contains(tau, imagePhi))
+)
 
 getHilbRays = method()
 getHilbRays(Cone) := List => sigma -> (
