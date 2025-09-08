@@ -32,6 +32,13 @@ fan Spline := Fan => (f) -> f.cache#Fan
 ring Spline := Ring => (f) -> f.cache#Ring
 vertices Spline := List => (f) -> f.cache#Vertices
 facets Spline := List => (f) -> f.cache#Facets
+mat Spline := Matrix => f -> (
+    if isMember(Mat, keys f.cache) then return (f.cache)#Mat else (
+        result := transpose matrix{apply(cones f, c -> restriction(f, c))};
+        (f.cache)#Mat = result;
+        result
+    )
+)
 
 spline = method(
     TypicalValue => Spline
