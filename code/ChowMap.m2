@@ -123,7 +123,9 @@ findUnimodularTriangulation(Fan) := Fan => (Sigma) -> (
 simplicialization = method()
 simplicialization(Fan) := Fan => (Sigma) ->  (
     if isSimplicial Sigma then Sigma else (
-        fan(flatten join(maxFacesAsCones(Sigma) / simplicialization))
+        
+        firstNonsimplicialCodim := first select(1, reverse toList(0..dim Sigma), k -> any(facesAsCones(k, Sigma) / isSimplicial, bool -> bool == false));
+        simplicialization fan(flatten join(facesAsCones(firstNonsimplicialCodim, Sigma) / simplicialization))
     )
 )
 simplicialization(Cone) := List => (sigma) -> (
