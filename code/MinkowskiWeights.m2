@@ -10,7 +10,7 @@ minkowskiWeight = method(
 cones MinkowskiWeight := List => (mw) -> (mw.cache)#Cones
 
 mat = method()
-mat(MinkowskiWeight) := List => (mw) -> (
+mat(MinkowskiWeight) := Matrix => (mw) -> (
     if isMember(Mat, keys mw.cache) then return (mw.cache)#Mat else (
         result := transpose matrix{apply(cones mw, c -> weight(mw, c))};
         (mw.cache)#Mat = result;
@@ -23,14 +23,36 @@ dim(MinkowskiWeight) := ZZ => (mw) -> dim fan mw - (mw.cache)#Codimension
 
 weight = method()
 weight(MinkowskiWeight, Cone) := ZZ => (mw, tau) -> (
-    mw.weightFunction(tau)
+    -- ensure weight table exists in cache
+    if not isMember("Weights", keys mw.cache) then mw.cache#Weights = new MutableHashTable from {};
+    wtTable := mw.cache#Weights;
+
+    -- return cached value if available
+    if isMember(tau, keys wtTable) then (
+        wtTable#tau
+    ) else (
+        -- compute on demand via stored weightFunction closure and cache it
+        val := mw.weightFunction(tau);
+        wtTable#tau = val;
+        val
+    )
 )
 
-minkowskiWeight(Fan, FunctionClosure, ZZ) := MinkowskiWeight => (Sigma, chowmap, coneCodim) -> (
+minkowskiWeight(Fan, Function, ZZ) := MinkowskiWeight => (Sigma, f, coneCodim) -> (
     -- weightFunction should take in a cone and return an integer
     -- We should check the balancing condition here.
 
-    new MinkowskiWeight from {weightFunction => chowmap, cache => new MutableHashTable from {Fan => Sigma, Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
+    new MinkowskiWeight from {
+        weightFunction => f, 
+        cache => new MutableHashTable from 
+            {Fan => Sigma, 
+            Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
+)
+minkowskiWeight(Fan, Matrix, ZZ) := MinkowskiWeight => (Sigma, M, coneCodim) -> (
+    if numrows M != #facesAsCones(coneCodim,Sigma) then error "Matrix must have a column for each cone of the specified codimension.";
+    localHash := (hashTable for p in pairs facesAsCones(coneCodim,Sigma) list p_1 => M_(p_0,0));
+    chowmap := (tau -> (values selectKeys(localHash, sigma -> sigma == tau))_0);
+    minkowskiWeight(Sigma, chowmap, coneCodim)
 )
 
 pullback(FanMap, MinkowskiWeight) := MinkowskiWeight => {} >> opts -> (psi, mw) -> (
