@@ -14,6 +14,7 @@ chowMap(List, ZZ) := RingElement => (splineList,d) -> (
 )
 
 chowMap(Spline) := MinkowskiWeight => f -> (
+    if isMember(MinkowskiWeight, keys f.cache) then return (f.cache)#MinkowskiWeight else (
     Sigma := fan(f);
     if degree f < dim Sigma - ambDim Sigma then error "Degree of spline too small to produce a nontrivial Minkowski weight.";
     d := degree(f);
@@ -21,7 +22,10 @@ chowMap(Spline) := MinkowskiWeight => f -> (
     weightFunction := tau -> (
         if d + dim tau - ambDimSigma < 0 then 0 else chowMap(f, tau)
     );
-    minkowskiWeight(Sigma, weightFunction, d)
+    result := minkowskiWeight(Sigma, weightFunction, d);
+    f.cache#MinkowskiWeight = result;
+    result
+    )
 )
 chowMap(Spline, Cone) := RingElement => (f, tau) -> (
     R := ring(f);
@@ -98,7 +102,7 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
         if isUnimodular(sigma) then {sigma} else (
                 hilbRays := getHilbRays(sigma);
                 interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma- 1, sigma), r)) / rays;
-                if length(interiorHilbRays) < 0 then error "No interior rays found and not unimodular, should implement higher translate.";
+                if length(interiorHilbRays) == 0 then error "No interior rays found and not unimodular, should implement higher translate.";
                 -- That is, I need to get a ray from a higher translate of the cone.
                 subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, interiorHilbRays_0));
                 unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivisionHilb);
@@ -116,8 +120,12 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
     )
 )
 findUnimodularTriangulation(Fan) := Fan => (Sigma) -> (
-    unimodularCones := flatten apply(maxFacesAsCones(Sigma), sigma -> findUnimodularTriangulation(sigma));
-    fan unimodularCones
+    -*result := hashTable for k from 0 to dim Sigma list (
+        k => for sigma in facesAsCones(1, Sigma) list if isMember(UnimodularTriangulation, keys sigma.cache) then sigma.cache#UnimodularTriangulation else findUnimodularTriangulation(sigma)
+    );*-
+    for sigma in maxFacesAsCones(Sigma) list (
+        if isMember(UnimodularTriangulation, keys sigma.cache) then sigma.cache#UnimodularTriangulation else findUnimodularTriangulation(sigma)
+    ) -- so this will save the unimodular triangulation of each maximal cone in the cache.
 )
 
 simplicialization = method()
@@ -237,3 +245,4 @@ operationalChowGroup(Fan, ZZ) := Module => (Sigma, k) -> (
         error("Fan is not complete, need to implement Kimura's inductive method.")
     )
 )
+

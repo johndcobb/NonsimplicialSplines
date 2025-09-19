@@ -22,8 +22,12 @@ addOrigin(List, List) := Sequence => (V,F) -> (
 
 maxFacesAsCones = method()
 maxFacesAsCones(Fan) := List => (Sigma) -> (
-    V := entries transpose rays Sigma;
-    (for maxCone in maxCones(Sigma) list (V_maxCone)) / transpose / matrix / coneFromVData
+    if isMember(maxCones, keys Sigma.cache) then (Sigma.cache)#maxCones else (
+        V := entries transpose rays Sigma;
+        result := (for maxCone in maxCones(Sigma) list (V_maxCone)) / transpose / matrix / coneFromVData;
+        (Sigma.cache)#maxCones = result;
+        result
+    )
 )
 
 -- This takes in V and F required to compute splines, and then creates the fan after removing the zero vector.

@@ -27,12 +27,14 @@ describe Spline := f -> (
 )
 
 degree Spline := ZZ => (f) -> f.cache#Degree
-cones Spline := List => (f) -> f.cache#Cones
+cones Spline := List => (f) -> maxFacesAsCones(fan f)
 fan Spline := Fan => (f) -> f.cache#Fan
 ring Spline := Ring => (f) -> f.cache#Ring
 vertices Spline := List => (f) -> f.cache#Vertices
 facets Spline := List => (f) -> f.cache#Facets
-mat Spline := Matrix => f -> (
+
+mat = method()
+mat(Spline) := Matrix => f -> (
     if isMember(Mat, keys f.cache) then return (f.cache)#Mat else (
         result := transpose matrix{apply(cones f, c -> restriction(f, c))};
         (f.cache)#Mat = result;
@@ -56,7 +58,7 @@ spline(List, Fan, Ring) := Spline => (f, Sigma, R) -> (
         promote(f_coneNum, R)
     );
 
-    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Cones => maxFacesAsCones(Sigma), Degree => first max(f / degree)}};
+    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Degree => first max(f / degree)}};
 )
 spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
     (VFixed, FFixed):= removeOrigin(V,F);
