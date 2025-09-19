@@ -27,21 +27,25 @@ The following is a pyramid with a hexagonal base
 V={{0,0,-1},{-1,-1,1},{0,-2,1},{1,-1,1},{1,1,1}, {0,2,1},{-1,1,1},{0,0,0}}
 F={{1,2,3,4,5,6,7},{0,1,2,7},{0,2,3,7},{0,3,4,7},{0,4,5,7}, {0,5,6,7},{0,6,1,7}}
 fileName = "hexagonalBase.m2"
+fileName' = "hexagonalBaseSimplicial.m2" 
 
 -- the following is our standard pyramid example
 V = {{0,0,-1}, {-1,-1,1}, {1,-1,1},  {-1,1,1}, {1,1,1}};
 F = {{0,1,2}, {0,1,3}, {0,2,4}, {0,3,4}, {1,2,3,4}};
 fileName = "pyramid.m2"
+fileName' = "pyramidSimplicial.m2"
 
 -- The following is the cube example
 V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,1},{1,-1,1},{-1,1,1},{-1,-1,1}};
 F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
 fileName = "cube.m2"
+fileName' = "cubeSimplicial.m2"
 
 -- The following is Fultons examples
 V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,2,3},{1,-1,1},{-1,1,1},{-1,-1,1}};
 F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
 fileName = "fulton.m2"
+fileName' = "fultonSimplicial.m2"
 
 -*
 To save a triangulation for later, you can use the saveTriangulation and loadTriangulation functions in helpers.m2. The pwd may need to be changed for where you want to store these.
@@ -58,6 +62,7 @@ R = ring Splines;
 
 ------ The right side of the square deals with the simplicialization of Delta
 Delta' = simplicialization(Delta);
+loadTriangulation(fileName', Delta') -- this will save the precomputed unimodularTriangulation into Delta'
 Splines' = splineModule(Delta',0, Homogenize => false) 
 splineObjs' = splineList(Splines', Delta', R);
 --- The following is the map of lattices mapping Delta' --> Delta
@@ -70,17 +75,6 @@ psi = map(Delta,Delta', map(ZZ^(ambDim Delta), ZZ^(ambDim Delta'), 1))
 --  mat pullback(psi, chowMap(testSpline)) == mat chowMap(pullback(psi, testSpline))
 --
 
-
-k=2
-Ak = operationalChowGroup(Delta,k)
-Ak' = operationalChowGroup(Delta',k)
-
-mwList = for i from 0 to numcols generators Ak - 1 list (
-   mwMat := (generators Ak)_i;
-   minkowskiWeight(Delta, matrix mwMat, k)
-)
-kernel transpose matrix(mwList / mat / entries / flatten) -- its zero, as expected by hal.
--- now, I want to compute the pullback map Ak --> Ak' coming from psi.
 
 
 
@@ -127,11 +121,7 @@ kerModule == guessModule -- true!
 kSplines' = image super basis(k, Splines') -- this is the elements of A_T^*(X) that generate A^k_T(X).
 prune kSplines' -- these have a bunch of trivial relations
 generators kSplines'
-kSplines'**R
-generators(kSplines'**R) 
 
-kSplinePullback = fold( (a,b) -> a | b, apply(kSplinesObjs, s -> mat pullback(psi, s)))
-generators (pullback(psi,kSplines**R))
 
 kSplinesObjs' = splineList(kSplines', Delta', R)
 ik' = chowMap(kSplinesObjs', k) ---- this will take a long time because there are 18 splines...
@@ -152,6 +142,15 @@ prune ker ikMap'
 prune coker ikMap'
 
 
+
+-*
+Our simplicialization map psi: Delta' --> Delta induces a dominant map X --> X' by Proposition 2.7 in Fulton-Sturmfels. Thus we should be able to pullback Minkowski weights in A^k(X') to A^k(X). 
+
+Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a cone of codimension k. Let tau' be the smallest cone of Delta' that contains psi(tau)
+*-
+
+
+----- The vertical maps in the square are implemented as pullback and pushforward
 --- What about the inclusion maps?
 
 kerSplines = (generators kSplines)*(transpose transpose promote(generators ker ikMap, R)) -- this is the basis composed with ikMat.
@@ -173,12 +172,5 @@ iota = fold((a,b) -> a | b, splineMats / mat / entries / matrix)
 
 prune ker ikMap'
 
-
--*
-Our simplicialization map psi: Delta' --> Delta induces a dominant map X --> X' by Proposition 2.7 in Fulton-Sturmfels. Thus we should be able to pullback Minkowski weights in A^k(X') to A^k(X). 
-
-Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a cone of codimension k. Let tau' be the smallest cone of Delta' that contains psi(tau)
-*-
-
-
------ The vertical maps in the square are implemented as pullback and pushforward
+kSplinePullback = fold( (a,b) -> a | b, apply(kSplinesObjs, s -> mat pullback(psi, s)))
+generators (pullback(psi,kSplines**R))
