@@ -168,7 +168,7 @@ saveTriangulation(List, String, String) := () => (triangulation, filename, pwd) 
     (pwd | filename) << toExternalString(apply(triangulation, t -> t / rays)) << close;
 )
 saveTriangulation(List, String) := () => (triangulation, filename) -> (
-    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    pwd := currentDirectory() | "triangulations/";
     saveTriangulation(triangulation, filename, pwd)
 )
 
@@ -177,7 +177,7 @@ loadTriangulation(String, String) := List => (filename, pwd) -> (
     apply(value get (pwd | filename), t -> t / coneFromVData)
 )
 loadTriangulation(String) := List => filename -> (
-    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    pwd := currentDirectory() | "triangulations/";
     loadTriangulation(filename, pwd)
 )
 
@@ -189,6 +189,6 @@ loadTriangulation(String, String, Fan) := List => (filename, pwd, Sigma) -> (
     triangulation
 )
 loadTriangulation(String, Fan) := List => (filename, Sigma) -> (
-    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    pwd := currentDirectory() | "triangulations/";
     loadTriangulation(filename, pwd, Sigma)
 )

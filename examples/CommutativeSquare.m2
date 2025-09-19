@@ -43,7 +43,6 @@ V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,2,3},{1,-1,1},{-1,1,1},{-1,-1,1}
 F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
 fileName = "fulton.m2"
 
-
 -*
 To save a triangulation for later, you can use the saveTriangulation and loadTriangulation functions in helpers.m2. The pwd may need to be changed for where you want to store these.
 Here is how it works:
