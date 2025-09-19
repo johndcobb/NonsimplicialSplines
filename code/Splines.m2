@@ -33,7 +33,6 @@ ring Spline := Ring => (f) -> f.cache#Ring
 vertices Spline := List => (f) -> f.cache#Vertices
 facets Spline := List => (f) -> f.cache#Facets
 
-mat = method()
 mat(Spline) := Matrix => f -> (
     if isMember(Mat, keys f.cache) then return (f.cache)#Mat else (
         result := transpose matrix{apply(cones f, c -> restriction(f, c))};

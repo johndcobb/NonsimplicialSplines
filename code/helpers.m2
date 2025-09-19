@@ -1,3 +1,5 @@
+mat = method()
+
 
 removeOrigin = method()
 removeOrigin(List, List) := Sequence => (V,F) -> (
@@ -159,4 +161,34 @@ lawrenceLift(List, List, ZZ) := Sequence => (V,F,r) -> (
     lawrenceV := (flatten table(n, r, (i,j) -> ((basis ZZ^r)_j**(transpose matrix V)_i) || (basis ZZ^n)_i))/entries;
     lawrenceF := apply(F, face -> flatten apply(face, i -> toList(r*i..r*i+(r-1)) ));
     (lawrenceV, lawrenceF)
+)
+
+saveTriangulation = method()
+saveTriangulation(List, String, String) := () => (triangulation, filename, pwd) -> (
+    (pwd | filename) << toExternalString(apply(triangulation, t -> t / rays)) << close;
+)
+saveTriangulation(List, String) := () => (triangulation, filename) -> (
+    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    saveTriangulation(triangulation, filename, pwd)
+)
+
+loadTriangulation = method()
+loadTriangulation(String, String) := List => (filename, pwd) -> (
+    apply(value get (pwd | filename), t -> t / coneFromVData)
+)
+loadTriangulation(String) := List => filename -> (
+    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    loadTriangulation(filename, pwd)
+)
+
+loadTriangulation(String, String, Fan) := List => (filename, pwd, Sigma) -> (
+    triangulation := loadTriangulation(filename, pwd);
+    for p in pairs maxFacesAsCones(Sigma) do (
+        (p_1).cache#UnimodularTriangulation = triangulation_(p_0) 
+    );
+    triangulation
+)
+loadTriangulation(String, Fan) := List => (filename, Sigma) -> (
+    pwd := "/Users/John/Documents/GitHub/NonsimplicialSplines/triangulations/";
+    loadTriangulation(filename, pwd, Sigma)
 )
