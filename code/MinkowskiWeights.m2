@@ -9,7 +9,6 @@ minkowskiWeight = method(
 
 cones MinkowskiWeight := List => (mw) -> (mw.cache)#Cones
 
-mat = method()
 mat(MinkowskiWeight) := Matrix => (mw) -> (
     if isMember(Mat, keys mw.cache) then return (mw.cache)#Mat else (
         result := transpose matrix{apply(cones mw, c -> weight(mw, c))};
@@ -41,12 +40,11 @@ weight(MinkowskiWeight, Cone) := ZZ => (mw, tau) -> (
 minkowskiWeight(Fan, Function, ZZ) := MinkowskiWeight => (Sigma, f, coneCodim) -> (
     -- weightFunction should take in a cone and return an integer
     -- We should check the balancing condition here.
-
     new MinkowskiWeight from {
         weightFunction => f, 
         cache => new MutableHashTable from 
             {Fan => Sigma, 
-            Cones => facesAsCones(coneCodim,Sigma), Codimension => coneCodim}}
+            Cones => facesAsCones(coneCodim, Sigma), Codimension => coneCodim}}
 )
 minkowskiWeight(Fan, Matrix, ZZ) := MinkowskiWeight => (Sigma, M, coneCodim) -> (
     if numrows M != #facesAsCones(coneCodim,Sigma) then error "Matrix must have a column for each cone of the specified codimension.";
