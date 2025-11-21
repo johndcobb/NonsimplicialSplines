@@ -56,21 +56,14 @@ Here is how it works:
 *-
 
 Delta = fan(V,F);
-triangulation = findUnimodularTriangulation(Delta)
-saveTriangulation(triangulation, fileName)
-
 loadTriangulation(fileName, Delta) -- this will save the precomputed unimodularTriangulation into Delta 
 Splines = splineModule(Delta,0, Homogenize => false)
 R = ring Splines;
---C = splineComplex(Delta, 0)
---Splines = prune HH C -- gives a gradedModule
---prune Splines
---betti Splines
 
 ------ The right side of the square deals with the simplicialization of Delta
 Delta' = simplicialization(Delta);
 loadTriangulation(fileName', Delta') -- this will save the precomputed unimodularTriangulation into Delta'
-Splines' = splineModule(Delta',0, Homogenize => false)**R
+Splines' = splineModule(Delta',0, Homogenize => false) 
 splineObjs' = splineList(Splines', Delta', R);
 --- The following is the map of lattices mapping Delta' --> Delta
 psi = map(Delta,Delta', map(ZZ^(ambDim Delta), ZZ^(ambDim Delta'), 1))
@@ -91,14 +84,11 @@ Our simplicialization map psi: Delta' --> Delta induces a dominant map X' --> X 
 Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a cone of codimension k. Let tau' be the smallest cone of Delta' that contains psi(tau)
 *-
 
---- many of the comments below are for the pyramid example, but the code works for any fan.
 k=2
 ---- Lets compute the left side of the square.
 kSplines = image super basis(k, Splines) -- this is the elements of A_T^*(X) that generate A^k_T(X).
 prune kSplines -- these have a bunch of trivial relations
 generators kSplines
-
-kernelOfLocalization(kSplines, ideal 0_R)
 
 -- Its expressed as a 5 x 11 matrix: There are 11 generators and each one has 5 parts, one for each maximal cone of Delta.
 kSplinesObjs = splineList(kSplines, Delta, R)
@@ -110,12 +100,12 @@ prune Ak -- this a presentation of ZZ^2
 --- I want to express ik as a map from kSplines to A^k(X). 
 -- ik maps into Ak, so each column of ik can be rewritten as a Z-linear combination of the generators of Ak.
 -- The following matrix writes ik in the basis given by the generators of Ak.
-ikMat = transpose matrix for col from 0 to numcols ik - 1 list entries solve((generators Ak)**ZZ, lift(ik_col,ZZ))
+ikMat = transpose matrix for col from 0 to numcols ik - 1 list entries solve(generators Ak, lift(ik_col,ZZ))
 
 -- so (generators Ak) * M == ik.
 
 --- this models the map A^k_T(X) --> A^k(X) as a map from a free module ZZ^(numcols ik) to Ak....
-ikMap = map(Ak**ZZ, ZZ^(numgens kSplines), ikMat)
+ikMap = map(Ak, ZZ^(numgens kSplines), ikMat)
 tex ikMap
 prune ker ikMap
 prune coker ikMap
@@ -124,12 +114,7 @@ prune coker ikMap
 kerModule = image( (gens kSplines)*(generators ker ikMap)) --- the kernel as a module of splines
 guessModule = image((gens image super basis(k-1, Splines))**(vars R))
 kerModule == guessModule -- true!
-isSubset(kerModule, guessModule)
-isSubset(guessModule, kerModule)
 
-prune(kerModule / guessModule)
-
-prune(kSplines / kerModule)
 
 
 ------ The right side of the square deals with the simplicialization of Delta
@@ -156,9 +141,7 @@ ikMap' = map(Ak', ZZ^(numgens kSplines'), ikMat')
 prune ker ikMap'
 prune coker ikMap'
 
-kerModule' = image( (gens kSplines')*(generators ker ikMap')) --- the kernel as a module of splines
-guessModule' = image( (gens image super basis(k-1, Splines'))**(vars R))
-kerModule' == guessModule' -- true!s
+
 
 -*
 Our simplicialization map psi: Delta' --> Delta induces a dominant map X --> X' by Proposition 2.7 in Fulton-Sturmfels. Thus we should be able to pullback Minkowski weights in A^k(X') to A^k(X). 
@@ -170,5 +153,24 @@ Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a co
 ----- The vertical maps in the square are implemented as pullback and pushforward
 --- What about the inclusion maps?
 
+kerSplines = (generators kSplines)*(transpose transpose promote(generators ker ikMap, R)) -- this is the basis composed with ikMat.
+kerSplinesPullback = for s in splineList(image kerSplines, Delta, R) list pullback(psi, s)
+kerSplinesPullback / mat
+
+sourceMat = generators kSplines
 iota = for s in kSplinesObjs list pullback(psi, s)
 targetMat = transpose matrix(iota / mat / entries / flatten)
+
+generators(kSplines' ** R)
+targetMat ** R
+
+
+kSplinesObjs = splineList(kSplines, Delta, R)
+splineMats = for s in kSplinesObjs list pullback(psi, s)
+iota = fold((a,b) -> a | b, splineMats / mat / entries / matrix)
+
+
+prune ker ikMap'
+
+kSplinePullback = fold( (a,b) -> a | b, apply(kSplinesObjs, s -> mat pullback(psi, s)))
+generators (pullback(psi,kSplines**R))

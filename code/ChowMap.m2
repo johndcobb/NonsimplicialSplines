@@ -79,10 +79,11 @@ equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
 
 isUnimodular = method()
 isUnimodular(Cone) := Boolean => (sigma) -> (
-    sigmaRays := rays sigma;
-    D := transpose smithNormalForm(sigmaRays, ChangeMatrix => {false, false});
-    diagEntries := matrix{toList((numcols sigmaRays):1)}*D;
-    sum flatten entries diagEntries == numcols sigmaRays
+    sigmaRays = rays sigma;
+    if numColumns sigmaRays != numRows sigmaRays then
+        false
+    else (
+    abs(det rays sigma) == 1)
 )
 
 
@@ -103,7 +104,6 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
                 interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma- 1, sigma), r)) / rays;
                 if length(interiorHilbRays) == 0 then error "No interior rays found and not unimodular, should implement higher translate.";
                 -- That is, I need to get a ray from a higher translate of the cone.
-               -- firstNonunimodularCodim := first select(1, toList(0..dim fan sigma), k -> any(facesAsCones(k, fan sigma) / isUnimodular, bool -> bool == false));
                 subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, interiorHilbRays_0));
                 unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivisionHilb);
                 
@@ -119,49 +119,13 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
         )
     )
 )
--- the key issue here is that if you take a unimodular subdivision of each maximal cone in a fan, this does not necessarily restrict to a unimodular subdivision of every cone in the fan. This DOES work in dimension 3, but only because all dim 2 cones are unimodular. So we have to do something more complicated, which is recurse through the fan and stellar subdivide globally until everything is unimodular.
--- the following algorithm is much slower because I have to keep updating a fan, but I can't think of another way to handle beyond dimension 3.
-
--- One way to at least make the code look less complicated is to make findUnimodularTriangulation(Cone) = findUnimodularTriangulation(fan Cone) and then have the Cone case just return the unimodular triangulation from the fan case. But actually this wouldn't remove so much of the code and would might be slower, because we still need to cache the triangulation in the cone....
 findUnimodularTriangulation(Fan) := Fan => (Sigma) -> (
     -*result := hashTable for k from 0 to dim Sigma list (
         k => for sigma in facesAsCones(1, Sigma) list if isMember(UnimodularTriangulation, keys sigma.cache) then sigma.cache#UnimodularTriangulation else findUnimodularTriangulation(sigma)
     );*-
-    --firstNonunimodularCodim := first select(1, toList(0..dim Sigma-1), k -> any(facesAsCones(k, Sigma) / isUnimodular, bool -> bool == false));
-   -- for sigma in facesAsCones(0, Sigma) list findUnimodularTriangulation(sigma) -- so this will save the unimodular triangulation of each maximal cone in the cache.
-    Sigma0 := Sigma;
-    while true do (
-        try (
-            firstNonunimodularCodim := first select(1, toList(0..dim Sigma0-1), k -> any(facesAsCones(k, Sigma0), s -> not isUnimodular s));
-        )
-        else (
-            break;
-        );
-
-        badCones := select(facesAsCones(firstNonunimodularCodim, Sigma0), s -> not isUnimodular s);
-
-        for sigma in badCones do (
-            -- ensure cone is simplicial first (barycentric/simplicialization if needed)
-            if not isSimplicial(sigma) then (
-                Sigma0 = simplicialization(Sigma0); -- global simplicialization step
-            );
-
-            -- pick an interior Hilbert-basis ray for this cone
-            hilbRays := getHilbRays(sigma);
-            interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma-1, sigma), r)) / rays;
-            if length(interiorHilbRays) == 0 then error "No interior Hilb ray found for bad cone; need higher translate or alternate ray selection.";
-            -- perform a global stellar subdivision so adjacency is preserved
-            Sigma0 = stellarSubdivision(Sigma0, interiorHilbRays_0); -- this is the bottleneck. Making a fan takes forever for some reason.
-        );
-    );
-
-    -- now every cone should be unimodular; populate per-cone caches by calling the Cone routine
-
-    Sigma.cache#maxCones = for sigma in facesAsCones(0,Sigma) list (
-        sigma.cache#UnimodularTriangulation = select(facesAsCones(0,Sigma0), s -> contains(sigma,s));
-        sigma
-    );
-    for sigma in Sigma.cache#maxCones list sigma.cache#UnimodularTriangulation -- this will populate the caches
+    for sigma in maxFacesAsCones(Sigma) list (
+        if isMember(UnimodularTriangulation, keys sigma.cache) then sigma.cache#UnimodularTriangulation else findUnimodularTriangulation(sigma)
+    ) -- so this will save the unimodular triangulation of each maximal cone in the cache.
 )
 
 simplicialization = method()
