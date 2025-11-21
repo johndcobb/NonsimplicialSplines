@@ -50,6 +50,13 @@ splineModule(Fan, ZZ) := Matrix => opts -> (Sigma, r) -> (
     splineModule(VWithZero, FWithZero, r, opts)
 )
 
+splineComplex(Fan, ZZ) := ChainComplex => opts -> (Sigma, r) -> (
+    V := entries transpose rays Sigma;
+    F := maxCones(Sigma);
+    (VWithZero, FWithZero) := addOrigin(V,F);
+    splineComplex(VWithZero, FWithZero, r, opts)
+)
+
 
 faceRing = method()
 faceRing(Fan) := Ring => Sigma -> (
