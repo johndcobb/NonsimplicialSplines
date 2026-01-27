@@ -47,6 +47,13 @@ F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
 fileName = "fulton.m2"
 fileName' = "fultonSimplicial.m2"
 
+--- This is a "more generic Fulton". Its example 4.4 in Katz-Payne.
+V = {{1,1,-1},{1,-1,-1},{-1,1,-1},{-1,-1,-1},{1,1,2},{1,-1,2},{-1,1,1},{-1,-1,1}};
+F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
+fileName = "fulton44.m2"
+fileName' = "fultonSimplicial44.m2"
+
+
 -*
 To save a triangulation for later, you can use the saveTriangulation and loadTriangulation functions in helpers.m2. The pwd may need to be changed for where you want to store these.
 Here is how it works:
@@ -84,7 +91,7 @@ Our simplicialization map psi: Delta' --> Delta induces a dominant map X' --> X 
 Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a cone of codimension k. Let tau' be the smallest cone of Delta' that contains psi(tau)
 *-
 
-k=2
+k=3
 ---- Lets compute the left side of the square.
 kSplines = image super basis(k, Splines) -- this is the elements of A_T^*(X) that generate A^k_T(X).
 prune kSplines -- these have a bunch of trivial relations
@@ -95,6 +102,8 @@ kSplinesObjs = splineList(kSplines, Delta, R)
 ik = chowMap(kSplinesObjs, k) -- this is a matrix with the images of the 11 generators of A^k_T(X) in A^k(X) 
 
 Ak = operationalChowGroup(Delta, k)
+chowGroup(Delta, k) 
+Ak
 prune Ak -- this a presentation of ZZ^2
 
 --- I want to express ik as a map from kSplines to A^k(X). 
