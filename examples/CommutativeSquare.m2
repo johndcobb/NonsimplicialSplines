@@ -53,6 +53,36 @@ F = {{4,5,7,6},{0,1,3,2},{0,2,6,4},{0,1,5,4},{1,3,7,5},{3,2,6,7}};
 fileName = "fulton44.m2"
 fileName' = "fultonSimplicial44.m2"
 
+-- The following is the dodecahedron (platonic solid)
+V = {{1,1,1}, {1,1,-1}, {1,-1,1}, {1,-1,-1}, {-1,1,1}, {-1,1,-1}, {-1,-1,1}, {-1,-1,-1}, {0,144/89,89/144}, {0,144/89,-89/144}, {0,-144/89,89/144}, {0,-144/89,-89/144}, {89/144,0,144/89}, {89/144,0,-144/89}, {-89/144,0,144/89}, {-89/144,0,-144/89}, {144/89,89/144,0}, {144/89,-89/144,0}, {-144/89,89/144,0}, {-144/89,-89/144,0}};
+F = {{0,8,4,18,16}, {0,16,1,9,8}, {1,13,5,19,17}, {1,17,3,11,9}, {2,12,6,14,10}, {2,10,7,15,14}, {3,11,7,15,13}, {3,17,1,9,11}, {4,18,5,14,12}, {5,19,6,14,18}, {6,15,7,11,19}, {7,13,5,19,11}};
+fileName = "dodecahedron.m2"
+fileName' = "dodecahedronSimplicial.m2"
+-- haven't computed.
+
+--EgyptPentagon
+V={{0,0,0},{0,2,1},{1,1,1},{1,-1,1},{-1,-1,1},{-1,1,1},{0,0,-1}}
+F={{0,1,2,3,4,5},{0,6,1,2},{0,6,3,4},{0,6,4,5},{0,6,5,1},{0,6,2,3}}
+fileName = "pentagonalBase.m2"
+fileName' = "pentagonalBaseSimplicial.m2"
+
+
+-- EgyptPentagonalPrism
+V={{0,0,0},{0,2,1},{1,1,1},{1,-1,1},{-1,-1,1},{-1,1,1},{0,2,-1},{1,1,-1},{1,-1,-1},{-1,-1,-1},{-1,1,-1}}
+F={{0,1,2,6,7},{0,2,3,7,8},{0,3,4,8,9},{0,4,5,9,10},{0,5,1,10,6},{0,1,2,3,4,5},{0,6,7,8,9,10}}
+fileName = "pentagonalPrism.m2"
+fileName' = "pentagonalPrismSimplicial.m2"
+
+-- triangular prism
+V = {{0,0,0},{1/2,3/2,1}, {1/2,-1/2,1},{-3/2,-1/2,1},{1/2,3/2,-1}, {1/2,-1/2,-1},{-3/2,-1/2,-1}}
+F={{0,1,2,3},{0,4,5,6},{0,1,2,4,5}, {0,3,2,6,5}, {0,1,4,6,3}}
+fileName = "triangularPrism.m2"
+fileName' = "triangularPrismSimplicial.m2"
+
+
+--- hexagonal cone
+
+
 
 -*
 To save a triangulation for later, you can use the saveTriangulation and loadTriangulation functions in helpers.m2. The pwd may need to be changed for where you want to store these.
@@ -63,12 +93,19 @@ Here is how it works:
 *-
 
 Delta = fan(V,F);
+triangulation = findUnimodularTriangulation(Delta)
+saveTriangulation(triangulation, fileName)
+
 loadTriangulation(fileName, Delta) -- this will save the precomputed unimodularTriangulation into Delta 
+C = splineComplex(Delta, 0, Homogenize => false)
 Splines = splineModule(Delta,0, Homogenize => false)
 R = ring Splines;
 
 ------ The right side of the square deals with the simplicialization of Delta
 Delta' = simplicialization(Delta);
+--triangulation = findUnimodularTriangulation(Delta')
+--saveTriangulation(triangulation, fileName)
+
 loadTriangulation(fileName', Delta') -- this will save the precomputed unimodularTriangulation into Delta'
 Splines' = splineModule(Delta',0, Homogenize => false) 
 splineObjs' = splineList(Splines', Delta', R);
@@ -82,8 +119,10 @@ psi = map(Delta,Delta', map(ZZ^(ambDim Delta), ZZ^(ambDim Delta'), 1))
 --  mat pullback(psi, chowMap(testSpline)) == mat chowMap(pullback(psi, testSpline))
 --
 
-
-
+S = ring(C)
+m = ideal vars S
+for i from 0 to 3 list prune HH_i C 
+prune HH_2 C
 
 -*
 Our simplicialization map psi: Delta' --> Delta induces a dominant map X' --> X by Proposition 2.7 in Fulton-Sturmfels. Thus we should be able to pullback Minkowski weights in A^k(X') to A^k(X). 
@@ -92,6 +131,8 @@ Let c be a Minkowski weight of codimension k on Delta'. Let tau in Delta be a co
 *-
 
 k=3
+
+
 ---- Lets compute the left side of the square.
 kSplines = image super basis(k, Splines) -- this is the elements of A_T^*(X) that generate A^k_T(X).
 prune kSplines -- these have a bunch of trivial relations
@@ -118,11 +159,16 @@ ikMap = map(Ak, ZZ^(numgens kSplines), ikMat)
 tex ikMap
 prune ker ikMap
 prune coker ikMap
+rank ikMap
+
 
 -- Here, we are getting the kernel if ik as a module of splines and seeing if its the same as M*A^(k-1)_T(X)
-kerModule = image( (gens kSplines)*(generators ker ikMap)) --- the kernel as a module of splines
-guessModule = image((gens image super basis(k-1, Splines))**(vars R))
-kerModule == guessModule -- true!
+kerModule = prune image( (gens kSplines)*(generators ker ikMap)) --- the kernel as a module of splines
+guessModule = prune image((gens image super basis(k-1, Splines))**(vars R))
+kerModule**QQ
+guessModule**QQ
+kerModule**QQ == guessModule**QQ -- true!
+
 
 
 
@@ -140,7 +186,7 @@ prune Ak'
 
 --- I want to express ik as a map from kSplines to A^k(X). 
 -- ik maps into Ak, so each column of ik can be rewritten as a Z-linear combination of the generators of Ak.
--- The following matrix writes ik in the basi|s given by the generators of Ak.
+-- The following matrix writes ik in the basis given by the generators of Ak.
 ikMat' = transpose matrix for col from 0 to numcols ik' - 1 list entries solve(generators Ak', lift(ik'_col,ZZ))
 
 -- so (generators Ak) * M == ik.
