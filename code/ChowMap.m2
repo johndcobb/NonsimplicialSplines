@@ -361,7 +361,8 @@ hasExtraKernel(Fan, ZZ) := Boolean => (Delta, k) -> (
     ikMap := map(Ak, ZZ^(numgens kSplines), ikMat);
 
     -- Here, we are getting the kernel if ik as a module of splines and seeing if its the same as M*A^(k-1)_T(X)
-    kerModule := prune image( (gens kSplines)*(generators ker ikMap)); --- the kernel as a module of splines
-    guessModule := prune image((gens image super basis(k-1, Splines))**(vars R));
-    kerModule**QQ != guessModule**QQ
+    kerModule := image( (gens kSplines)*(generators ker ikMap)); --- the kernel as a module of splines
+    guessModule := image((gens image super basis(k-1, Splines))**(vars R));
+
+    kerModule != guessModule
 )
