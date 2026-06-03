@@ -82,7 +82,7 @@ map(Fan, Fan, Matrix) := FanMap => opts -> (Sigma2, Sigma1, phi) -> (
     new FanMap from {source => Sigma1, target => Sigma2, map => phi}
 )
 
---isStrict = method()
+if not instance(value symbol isStrict, MethodFunction) then globalAssign(symbol isStrict, method())
 isStrict(FanMap) := Boolean => f -> all(maxFacesAsCones(f#source), sigma -> length imageCones(f,sigma) == 1)
 
 mat = method()

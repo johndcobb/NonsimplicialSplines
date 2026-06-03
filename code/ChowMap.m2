@@ -158,11 +158,17 @@ chowMapCoefficientData(Fan, Ring, ZZ) := List => (Sigma, R, d) -> (
 
 isUnimodular = method()
 isUnimodular(Cone) := Boolean => (sigma) -> (
-    sigmaRays = rays sigma;
-    if numColumns sigmaRays != numRows sigmaRays then
-        false
-    else (
-    abs(det rays sigma) == 1)
+    if dim sigma == 0 then true else (
+        if not isSimplicial sigma then false else (
+            sigmaRays := rays sigma;
+            coneDim := rank sigmaRays;
+            if numColumns sigmaRays != coneDim then false else (
+                maximalMinors := flatten entries gens minors(coneDim, sigmaRays);
+                nonzeroMinors := select(maximalMinors, m -> m != 0);
+                length nonzeroMinors > 0 and gcd apply(nonzeroMinors, m -> abs m) == 1
+            )
+        )
+    )
 )
 
 
@@ -180,10 +186,11 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
     else (
         if isUnimodular(sigma) then {sigma} else (
                 hilbRays := getHilbRays(sigma);
-                interiorHilbRays := select(hilbRays, r -> not contains(facesAsCones(ambDim sigma- 1, sigma), r)) / rays;
-                if length(interiorHilbRays) == 0 then error "No interior rays found and not unimodular, should implement higher translate.";
+                existingRayFaces := facesAsCones(dim sigma - 1, sigma);
+                newHilbRays := select(hilbRays, r -> not any(existingRayFaces, rho -> contains(rho, r))) / rays;
+                if length(newHilbRays) == 0 then error "No new Hilbert rays found and not unimodular, should implement higher translate.";
                 -- That is, I need to get a ray from a higher translate of the cone.
-                subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, interiorHilbRays_0));
+                subdivisionHilb := facesAsCones(0,stellarSubdivision(fan sigma, newHilbRays_0));
                 unimodularPartition := partition(triangle -> isUnimodular(triangle), subdivisionHilb);
                 
                 correctTriangles := if isMember(true, keys unimodularPartition) then unimodularPartition#true else {};
@@ -212,12 +219,14 @@ simplicialization(Fan) := Fan => (Sigma) ->  (
     if isSimplicial Sigma then Sigma else (
         
         firstNonsimplicialCodim := first select(1, reverse toList(0..dim Sigma), k -> any(facesAsCones(k, Sigma) / isSimplicial, bool -> bool == false));
-        simplicialization fan(flatten join(facesAsCones(firstNonsimplicialCodim, Sigma) / simplicialization))
+        nonsimplicialCone := first select(facesAsCones(firstNonsimplicialCodim, Sigma), sigma -> not isSimplicial sigma);
+        barycenter := rays coneFromVData transpose matrix{sum entries transpose rays nonsimplicialCone};
+        simplicialization stellarSubdivision(Sigma, barycenter)
     )
 )
 simplicialization(Cone) := List => (sigma) -> (
     if isSimplicial sigma then {sigma} else (
-        barycenter := (transpose matrix{(sum entries transpose rays sigma)})/(numColumns rays sigma);
+        barycenter := rays coneFromVData transpose matrix{sum entries transpose rays sigma};
         subdivision := facesAsCones(0,stellarSubdivision(fan sigma, barycenter));
         subdivision
     )
