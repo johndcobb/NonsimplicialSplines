@@ -24,13 +24,33 @@ I want to compute each of these maps....
 The following is a pyramid with a hexagonal base
 *-
 ------------------------------------------------------
-V={{0,0,-1},{-1,-1,1},{0,-2,1},{1,-1,1},{1,1,1}, {0,2,1},{-1,1,1},{0,0,0}}
-F={{1,2,3,4,5,6,7},{0,1,2,7},{0,2,3,7},{0,3,4,7},{0,4,5,7}, {0,5,6,7},{0,6,1,7}}
+V={{0,0,-1},{-1,-1,1},{0,-2,1},{1,-1,1},{1,2,3/2}, {0,2,1},{-1,1,1}}
+F={{1,2,3,4,5,6},{0,1,2},{0,2,3},{0,3,4},{0,4,5}, {0,5,6},{0,6,1}}
 fileName = "hexagonalBase.m2"
 fileName' = "hexagonalBaseSimplicial.m2" 
 
+
+V = {{0,0,-1}, {-2,-1,1}, {-1,-2,1}, {1,-2,1}, {2,-1,1}, {2,1,1}, {1,2,1}, {-1,2,1}, {-2,1,1}}
+F = {{1,2,3,4,5,6,7,8}, {0,1,2}, {0,2,3}, {0,3,4}, {0,4,5}, {0,5,6}, {0,6,7}, {0,7,8}, {0,8,1}}
+fileName = "octagonalBase.m2"
+
+V = {{-1/3,-1/3,-1/3}, {1,0,0}, {0,1,0}, {0,0,1}, {2/3,1/6,1/6}, {1/6, 2/3, 1/6}, {1/6, 1/6, 2/3}}
+F = {{1,2,4,5}, {2,3,5,6}, {3,1,4,6}, {4,5,6}, {0,1,2}, {0,2,3}, {0,3,1}}
+--- hal's homology triangle
+
+
+--- 3D homology tetrahedron
+V = {{0,0,-3}, {-3,-2,2}, {3,-2,2}, {0,3,2}, {-1,-1,2}, {1,-1,2}, {0,1,2}, {0,-3,-1}, {1,-3,1}, {-1,-3,1}, {-3,1,-1}, {-4,0,1}, {-3,3,1},{3,1,-1}, {3,3,1}, {4,0,1}}
+F = {{1,2,4,5}, {2,3,5,6}, {3,6,1,4}, {4,5,6}, {0,1,7,9}, {0,2,7,8}, {1,2,8,9}, {7,8,9}, {0,1,10,11}, {1,3,11,12}, {0,3,10,12}, {10,11,12}, {0,3,13,14}, {3,2,14,15}, {0,2,13,15}, {13,14,15}}
+
+
+V = {{0,0,-1}, {-2,-2,1}, {2,-2,1}, {2,2,1}, {-2,2,1}, {-1,-1,1}, {1,-1,1}, {1,1,1}, {-1,1,1}}
+F = {{1,2,5,6}, {2,3,6,7}, {3,4,7,8}, {1,4,5,8}, {5,6,7,8}, {0,1,2}, {0,2,3}, {0,3,4}, {0,4,1}}
+--- hal's homology square
+
 -- the following is our standard pyramid example
-V = {{0,0,-1}, {-1,-1,1}, {1,-1,1},  {-1,1,1}, {1,1,1}};
+
+V = {{0,0,-1}, {-1,-1,2}, {1,-1,1},  {-1,1,1}, {1,1,1}};
 F = {{0,1,2}, {0,1,3}, {0,2,4}, {0,3,4}, {1,2,3,4}};
 fileName = "pyramid.m2"
 fileName' = "pyramidSimplicial.m2"
@@ -79,7 +99,8 @@ F={{0,1,2,3},{0,4,5,6},{0,1,2,4,5}, {0,3,2,6,5}, {0,1,4,6,3}}
 fileName = "triangularPrism.m2"
 fileName' = "triangularPrismSimplicial.m2"
 
-
+V = {{0,0,0},{1/2,3/2,1}, {1/2,-1/2,1},{-3/2,-1/2,1},{1/2,3/2,-1}, {1/2,-1/2,-1},{-3/2,-1/2,-1}}
+F={{0,1,2,3},{0,4,5,6},{0,1,2,4,5}, {0,3,2,6,5}, {0,1,4,6,3}}
 --- hexagonal cone
 
 
@@ -93,6 +114,12 @@ Here is how it works:
 *-
 
 Delta = fan(V,F);
+isComplete Delta
+C = splineComplex(Delta, 0, Homogenize => false)
+S = ring(C)
+for i from 0 to 3 list prune HH_i C 
+prune HH_2 C
+hasExtraKernel(Delta, 3)
 triangulation = findUnimodularTriangulation(Delta)
 saveTriangulation(triangulation, fileName)
 
@@ -119,10 +146,6 @@ psi = map(Delta,Delta', map(ZZ^(ambDim Delta), ZZ^(ambDim Delta'), 1))
 --  mat pullback(psi, chowMap(testSpline)) == mat chowMap(pullback(psi, testSpline))
 --
 
-S = ring(C)
-m = ideal vars S
-for i from 0 to 3 list prune HH_i C 
-prune HH_2 C
 
 -*
 Our simplicialization map psi: Delta' --> Delta induces a dominant map X' --> X by Proposition 2.7 in Fulton-Sturmfels. Thus we should be able to pullback Minkowski weights in A^k(X') to A^k(X). 

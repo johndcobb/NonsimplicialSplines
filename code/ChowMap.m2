@@ -7,10 +7,32 @@ needs "./MinkowskiWeights.m2"
 
 --------------------- Now methods for the chow map
 
+chowMapCoefficientData = method()
+simplicialEquivariantMultiplicity = method()
+equivariantMultiplicityViaTriangulation = method()
+
 chowMap = method() 
-chowMap(List, ZZ) := RingElement => (splineList,d) -> (
+chowMap(List, ZZ) := Matrix => (splineList,d) -> (
     splineListd := select(splineList, f -> degree f == d);
-    transpose matrix (splineListd / chowMap / mat / entries / flatten)
+    if length splineListd == 0 then return matrix{};
+
+    Sigma := fan splineListd_0;
+    R := ring splineListd_0;
+    if not all(splineListd, f -> fan f === Sigma) then error "All splines must be on the same fan.";
+    if not all(splineListd, f -> ring f === R) then error "All splines must use the same ring.";
+
+    coefficientData := chowMapCoefficientData(Sigma, R, d);
+    valuesBySpline := apply(splineListd, f -> flatten entries mat f);
+    matrix for data in coefficientData list (
+        idxs := data_0;
+        coeffs := data_1;
+        for splineValues in valuesBySpline list (
+            if length idxs == 0 then 0 else (
+                selectedValues := splineValues_idxs;
+                sum(toList(0..length idxs - 1), i -> selectedValues_i * coeffs_i)
+            )
+        )
+    )
 )
 
 chowMap(Spline) := MinkowskiWeight => f -> (
@@ -35,8 +57,11 @@ chowMap(Spline, Cone) := RingElement => (f, tau) -> (
     -*for tauFace in tauFaces do (
         << "Cone containing tau: " << rays tauFace << endl;
     );*-
-    -- TODO: This calculations equivariant multiplicity even when spline is zero. Should fix this for speed.
-    sum for tauFace in tauFaces list restriction(f,tauFace)*equivariantMultiplicity(tauFace, tau, R)
+    sum for tauFace in tauFaces list (
+        local value;
+        value = restriction(f,tauFace);
+        if value == 0 then 0 else value*equivariantMultiplicity(tauFace, tau, R)
+    )
 )
 chowMap(List, List, List, Cone) := RingElement => (f, V, F, tau) -> chowMap(spline(f,V,F), tau)
 
@@ -44,7 +69,7 @@ chowMap(List, List, List, Cone) := RingElement => (f, V, F, tau) -> chowMap(spli
 equivariantMultiplicity = method()
 -- This computes the equivariant multiplicity of a unimodular triangulation at a cone tau
 
-equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau, R) -> (
+equivariantMultiplicity(List, Cone, Ring) := RingElement => (unimodularTriangulation, tau, R) -> (
     -- Only need to compute multiplicities if the triangle contains tau
     trianglesIntersectingTau := select(unimodularTriangulation, triangle -> (dim intersect(triangle, tau)) == dim tau);
     trianglesContainingTau := select(unimodularTriangulation, triangle -> contains(triangle, tau));
@@ -71,9 +96,63 @@ equivariantMultiplicity(List, Cone, Ring) := ZZ => (unimodularTriangulation, tau
     ) 
 )
 
-equivariantMultiplicity(Cone, Cone, Ring) := ZZ => (sigma, tau, R) -> (
+simplicialEquivariantMultiplicity(Cone, Cone, Ring) := RingElement => (sigma, tau, R) -> (
+    if not isSimplicial sigma then error "Cone must be simplicial.";
+    if not isFace(tau, sigma) then error "Tau must be a face of sigma.";
+
+    dualMatrix := rays dualCone sigma;
+    tauidxs := select(toList(0..numColumns dualMatrix - 1), i -> transpose rays tau * dualMatrix_i == 0);
+
+    if length tauidxs == 0 then 1 else (
+        selectedDuals := dualMatrix_(tauidxs);
+        ej := flatten entries(vars R * selectedDuals);
+        orthogonalLattice := kernelLLL(transpose rays tau);
+        latticeIndex := if numColumns orthogonalLattice == 0 then 1 else abs det solve(orthogonalLattice, selectedDuals);
+        latticeIndex * product apply(ej, i -> 1/i)
+    )
+)
+
+equivariantMultiplicityViaTriangulation(Cone, Cone, Ring) := RingElement => (sigma, tau, R) -> (
     if isUnimodular(sigma) then equivariantMultiplicity({sigma}, tau, R) else (
         equivariantMultiplicity(findUnimodularTriangulation(sigma), tau, R)
+    )
+)
+
+equivariantMultiplicity(Cone, Cone, Ring) := RingElement => (sigma, tau, R) -> (
+    cacheKey := "EquivariantMultiplicity";
+    if not isMember(cacheKey, keys sigma.cache) then sigma.cache#cacheKey = new MutableHashTable from {};
+    multiplicityCache := sigma.cache#cacheKey;
+    if not isMember(R, keys multiplicityCache) then multiplicityCache#R = new MutableHashTable from {};
+    ringCache := multiplicityCache#R;
+
+    if isMember(tau, keys ringCache) then ringCache#tau else (
+        result := if isSimplicial(sigma) and isFace(tau, sigma) then (
+            simplicialEquivariantMultiplicity(sigma, tau, R)
+        ) else (
+            equivariantMultiplicityViaTriangulation(sigma, tau, R)
+        );
+        ringCache#tau = result;
+        result
+    )
+)
+
+chowMapCoefficientData(Fan, Ring, ZZ) := List => (Sigma, R, d) -> (
+    cacheKey := "ChowMapCoefficientData";
+    if not isMember(cacheKey, keys Sigma.cache) then Sigma.cache#cacheKey = new MutableHashTable from {};
+    coefficientCache := Sigma.cache#cacheKey;
+    if not isMember(R, keys coefficientCache) then coefficientCache#R = new MutableHashTable from {};
+    ringCache := coefficientCache#R;
+
+    if isMember(d, keys ringCache) then ringCache#d else (
+        SigmaFaces := maxFacesAsCones Sigma;
+        tauFaces := facesAsCones(d, Sigma);
+        data := for tau in tauFaces list (
+            idxs := select(toList(0..length SigmaFaces - 1), i -> isFace(tau, SigmaFaces_i));
+            coeffs := apply(idxs, i -> equivariantMultiplicity(SigmaFaces_i, tau, R));
+            {idxs, coeffs}
+        );
+        ringCache#d = data;
+        data
     )
 )
 
@@ -119,7 +198,7 @@ findUnimodularTriangulation(Cone) := List => (sigma) -> (
         )
     )
 )
-findUnimodularTriangulation(Fan) := Fan => (Sigma) -> (
+findUnimodularTriangulation(Fan) := List => (Sigma) -> (
     -*result := hashTable for k from 0 to dim Sigma list (
         k => for sigma in facesAsCones(1, Sigma) list if isMember(UnimodularTriangulation, keys sigma.cache) then sigma.cache#UnimodularTriangulation else findUnimodularTriangulation(sigma)
     );*-
@@ -246,3 +325,34 @@ operationalChowGroup(Fan, ZZ) := Module => (Sigma, k) -> (
     )
 )
 
+-------- Conjecture
+
+
+hasExtraKernel = method()
+hasExtraKernel(Fan, ZZ) := Boolean => (Delta, k) -> (
+    triangulation := findUnimodularTriangulation(Delta);
+    Splines := splineModule(Delta,0, Homogenize => false);
+    R := ring Splines;
+
+    kSplines := image super basis(k, Splines); -- this is the elements of A_T^*(X) that generate A^k_T(X).
+
+    kSplinesObjs := splineList(kSplines, Delta, R);
+    ik := chowMap(kSplinesObjs, k); -- this is a matrix with the images of the generators of A^k_T(X) in A^k(X)
+
+    Ak := operationalChowGroup(Delta, k);
+
+    --- I want to express ik as a map from kSplines to A^k(X).
+    -- ik maps into Ak, so each column of ik can be rewritten as a Z-linear combination of the generators of Ak.
+    -- The following matrix writes ik in the basis given by the generators of Ak.
+    ikMat := transpose matrix for col from 0 to numcols ik - 1 list entries solve(generators Ak, lift(ik_col,ZZ));
+
+    -- so (generators Ak) * M == ik.
+
+    --- this models the map A^k_T(X) --> A^k(X) as a map from a free module ZZ^(numcols ik) to Ak....
+    ikMap := map(Ak, ZZ^(numgens kSplines), ikMat);
+
+    -- Here, we are getting the kernel if ik as a module of splines and seeing if its the same as M*A^(k-1)_T(X)
+    kerModule := prune image( (gens kSplines)*(generators ker ikMap)); --- the kernel as a module of splines
+    guessModule := prune image((gens image super basis(k-1, Splines))**(vars R));
+    kerModule**QQ != guessModule**QQ
+)

@@ -49,15 +49,23 @@ spline(List, Fan, Ring) := Spline => (f, Sigma, R) -> (
 
     if length gens R != length first V then error "The number of generators in the ring must match the dimension of fan.";
 
-    coneHash := hashTable(for face in F list face => coneFromVData transpose matrix apply(face, idx -> V_idx));
-
-    fCone := inputCone -> (
-        coneVertices := (keys selectValues(coneHash, k -> k == inputCone))_0;
-        coneNum := position(F, face -> face == coneVertices);
-        promote(f_coneNum, R)
+    coneList := maxFacesAsCones Sigma;
+    if length f != length coneList then error "Spline data must have one entry for each maximal cone.";
+    fValues := apply(f, g -> promote(g, R));
+    restrictionTable := new MutableHashTable from (
+        for i from 0 to length coneList - 1 list coneList_i => fValues_i
     );
 
-    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => VFixed, Facets => FFixed, Fan => Sigma, Degree => first max(f / degree)}};
+    fCone := inputCone -> (
+        if isMember(inputCone, keys restrictionTable) then restrictionTable#inputCone else (
+            coneNum := position(coneList, sigma -> sigma == inputCone);
+            if coneNum === null then error "Cone not found in spline fan.";
+            restrictionTable#inputCone = fValues_coneNum;
+            fValues_coneNum
+        )
+    );
+
+    return new Spline from {splineFunction => fCone, cache => new MutableHashTable from {Ring => R, Vertices => V, Facets => F, Fan => Sigma, Degree => first max(f / degree), "RestrictionTable" => restrictionTable, "ConeValues" => fValues}};
 )
 spline(List, List, List, Ring) := Spline => (f, V, F, R) -> (
     (VFixed, FFixed):= removeOrigin(V,F);
